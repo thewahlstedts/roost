@@ -99,6 +99,9 @@ Prefer iTerm's own tabs? `roost --native` uses iTerm's tmux integration.
 Run `make hooks` once after cloning: every commit then runs a secret scan,
 gofmt, `go vet`, `staticcheck` and `govulncheck` (`brew install staticcheck
 govulncheck`), and is blocked if any fail. Bypass once with `--no-verify`.
+CI (GitHub Actions) runs the same checks plus a TruffleHog secret scan of the
+full history on every push and pull request; Dependabot keeps the pinned
+actions and Go modules up to date.
 
 `make install` replaces the binary (it never overwrites in place — macOS kills
 signed binaries that are overwritten while cached). `ROOST_SOCKET` and
