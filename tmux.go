@@ -198,9 +198,18 @@ set -g pane-border-style "fg=colour238"
 set -g pane-active-border-style "fg=#e0473a"
 set -g status-left-length 16
 set -g status-left "#[fg=#e0473a,bold] 🐓 roost #[default]"
+# Tab markers: which tabs run Claude (a pane with @roost_session) and which don't.
+# Override in custom.conf. @roost_marker: shell (default) | claude | both | none
+set -g @roost_marker shell
+set -g @roost_shell_marker '$'
+set -g @roost_claude_marker '✳'
+# Any tmux colour: a name (green), colourN, or #rrggbb.
+set -g @roost_shell_marker_color colour242
+set -g @roost_claude_marker_color colour242
+set -g @roost_tab_marker "#{?#{@roost_session},#{?#{||:#{==:#{@roost_marker},claude},#{==:#{@roost_marker},both}},#[fg=#{@roost_claude_marker_color}]#{@roost_claude_marker} ,},#{?#{||:#{==:#{@roost_marker},shell},#{==:#{@roost_marker},both}},#[fg=#{@roost_shell_marker_color}]#{@roost_shell_marker} ,}}"
 set -g window-status-separator "#[fg=colour239]│"
-set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=colour203]● ,#{?#{==:#{@roost_state},working},#[fg=colour221]● ,#{?#{==:#{@roost_state},done},#[fg=colour114]● ,}}}#[fg=colour246]#I #W "
-set -g window-status-current-format "#[bg=colour238,fg=colour255,bold] #{?#{==:#{@roost_state},waiting},#[fg=colour203]● ,#{?#{==:#{@roost_state},working},#[fg=colour221]● ,}}#[fg=colour255]#I #W "
+set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=colour203]● ,#{?#{==:#{@roost_state},working},#[fg=colour221]● ,#{?#{==:#{@roost_state},done},#[fg=colour114]● ,}}}#{E:@roost_tab_marker}#[fg=colour246]#I #W "
+set -g window-status-current-format "#[bg=colour238,fg=colour255,bold] #{?#{==:#{@roost_state},waiting},#[fg=colour203]● ,#{?#{==:#{@roost_state},working},#[fg=colour221]● ,}}#{E:@roost_tab_marker}#[fg=colour255]#I #W "
 set -g status-right-length 60
 set -g status-right "#(@BIN@ save --quiet)#[range=user|new]#[fg=colour114,bold] + new #[norange default]#[range=user|help]#[fg=colour242] ? help #[norange default]"
 

@@ -353,6 +353,7 @@ const keysHelp = `
     d    detach         s  save now        ?  this help
 
   Mouse: double-click a tab to rename · scroll · drag to copy
+  Tabs marked $ aren't running Claude (README: Tab markers)
 `
 
 // helpMenu waits for a key while the help popup is open, so it doubles as a

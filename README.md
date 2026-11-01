@@ -94,6 +94,24 @@ Prefer iTerm's own tabs? `roost --native` uses iTerm's tmux integration.
 - `ROOST_CLAUDE_CMD` changes how Claude is launched
   (e.g. `export ROOST_CLAUDE_CMD="claude --model opus"`).
 
+### Tab markers
+
+Tabs not running Claude (shells, other programs) get a dim `$` before their
+number; Claude tabs stay clean. Change it in `~/.roost/custom.conf`:
+
+```
+set -g @roost_marker both          # shell (default) | claude | both | none
+set -g @roost_shell_marker '$'
+set -g @roost_claude_marker '✳'
+set -g @roost_shell_marker_color green       # any tmux colour: green, colour114, #7ec699
+set -g @roost_claude_marker_color colour242  # default for both is dim grey
+```
+
+Tip: plain names like `green` use your terminal theme's colours, so they match
+other tools (e.g. a Claude status line that prints with `\033[32m`).
+
+Run `roost setup` (or restart roost) to apply.
+
 ## Development
 
 Run `make hooks` once after cloning: every commit then runs a secret scan,
