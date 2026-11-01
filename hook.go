@@ -36,7 +36,7 @@ func runHook() {
 
 	switch ev.Event {
 	case "SessionStart":
-		if ev.Session != "" {
+		if validSessionID(ev.Session) {
 			tmux("set-option", "-p", "-t", pane, "@roost_session", ev.Session)
 		}
 		setState("idle")

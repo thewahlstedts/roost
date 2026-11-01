@@ -67,12 +67,16 @@ func setup(remove bool) error {
 	}
 	if len(orig) > 2 {
 		backup := path + ".roost-backup-" + time.Now().Format("20060102-150405")
-		if err := os.WriteFile(backup, orig, 0o644); err != nil {
+		if err := os.WriteFile(backup, orig, 0o600); err != nil {
 			return err
 		}
 		fmt.Println("Backed up your settings to", backup)
 	}
-	if err := os.WriteFile(path, out.Bytes(), 0o644); err != nil {
+	mode := os.FileMode(0o644)
+	if fi, err := os.Stat(path); err == nil {
+		mode = fi.Mode().Perm()
+	}
+	if err := os.WriteFile(path, out.Bytes(), mode); err != nil {
 		return err
 	}
 	if remove {

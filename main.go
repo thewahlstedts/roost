@@ -150,7 +150,7 @@ func cmdOpen(native bool) error {
 		notice = "roost: run 'roost setup' once so Claude sessions can be resumed after a restart"
 	}
 	if notice != "" {
-		tmux("run-shell", "-b", "sleep 0.8; tmux -L "+socketName+" display-message -d 6000 "+shellQuote(notice))
+		tmux("run-shell", "-b", "sleep 0.8; tmux -L "+shellQuote(socketName)+" display-message -d 6000 "+shellQuote(notice))
 	}
 	return attach(native)
 }

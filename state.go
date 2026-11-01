@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -98,18 +99,18 @@ func save() (bool, error) {
 		return false, nil
 	}
 	b, _ := json.MarshalIndent(st, "", "  ")
-	if err := os.MkdirAll(historyDir(), 0o755); err != nil {
+	if err := os.MkdirAll(historyDir(), 0o700); err != nil {
 		return false, err
 	}
 	tmp := statePath() + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return false, err
 	}
 	if err := os.Rename(tmp, statePath()); err != nil {
 		return false, err
 	}
 	hist := filepath.Join(historyDir(), st.SavedAt.Format("20060102-150405")+".json")
-	_ = os.WriteFile(hist, b, 0o644)
+	_ = os.WriteFile(hist, b, 0o600)
 	pruneHistory(50)
 	return true, nil
 }
@@ -130,12 +131,17 @@ func pruneHistory(keep int) {
 // claudeSessionExists checks that a transcript for the session id is on disk,
 // so we never try to resume something Claude can't find.
 func claudeSessionExists(id string) bool {
-	if id == "" || strings.ContainsAny(id, "/\\*?[") {
+	if !validSessionID(id) {
 		return false
 	}
 	m, _ := filepath.Glob(filepath.Join(claudeDir(), "projects", "*", id+".jsonl"))
 	return len(m) > 0
 }
+
+// Session ids get typed into a shell on restore, so only accept real UUIDs.
+var sessionIDRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func validSessionID(id string) bool { return sessionIDRe.MatchString(id) }
 
 func claudeDir() string {
 	if d := os.Getenv("CLAUDE_CONFIG_DIR"); d != "" {

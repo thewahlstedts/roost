@@ -7,7 +7,7 @@ and every tab reopens in the right folder with `claude --resume` on the exact
 conversation it had before.
 
 ```
- roost   1 api  ● 2 web  3 notes                          + new  ^Space ? help
+ 🐓 roost  1 api │ ● 2 web │ 3 notes                         + new  ? help
 ```
 
 A dot on a tab means: **red** Claude needs you (permission/question),
@@ -20,7 +20,9 @@ make install      # builds and copies to ~/.local/bin/roost
 roost setup       # adds a small hook to ~/.claude/settings.json (backed up first)
 ```
 
-Needs `tmux` and `jq` (both via Homebrew) and Go to build.
+Needs macOS, `tmux` and `jq` (both via Homebrew), and Go to build. `roost
+setup` also creates an iTerm profile (see below); it's safe to re-run, and
+`roost setup --remove` undoes everything.
 
 ## Use
 
@@ -32,7 +34,15 @@ roost kill        # save + close everything
 ```
 
 Inside roost, use the mouse: click tabs, click **+ new** to pick a folder for a
-new Claude tab, double-click a tab to rename it. Keys are `Ctrl-Space`, then:
+new Claude tab (recent Claude projects first; type to filter), double-click a
+tab to rename it. Click **? help** for a cheat sheet — while it's open, `n` and
+`t` open tabs directly.
+
+Tabs are named after the folder they're in (for Claude tabs, the folder Claude
+is working in) and update as you move around. Rename a tab and your name sticks,
+including across restarts.
+
+Other keys are `Ctrl-Space`, let go, then:
 
 | key | does | key | does |
 |---|---|---|---|
@@ -42,10 +52,21 @@ new Claude tab, double-click a tab to rename it. Keys are `Ctrl-Space`, then:
 | `\|` `-` | split | `d` | detach |
 | `?` | help | `s` | save now |
 
-**Cmd+← / Cmd+→ switch tabs**, just like iTerm. `roost setup` adds an iTerm
-profile named **roost** (your default profile plus those two keys, and it
-starts roost when opened). Open it from iTerm's *Profiles* menu, or make it
-your default. Your other profiles keep normal iTerm tab switching.
+## iTerm
+
+`roost setup` adds an iTerm profile named **roost**: your default profile plus
+**Cmd+← / Cmd+→ to switch roost tabs**, a 🐓 icon, and it starts roost when
+opened. Open it with **Ctrl+Cmd+R** or the *Profiles* menu. Your other profiles
+are untouched.
+
+- iTerm's *global* key bindings beat profile ones. If Cmd+←/→ still switches
+  iTerm tabs, remove those two rows in Settings → Keys → Key Bindings (setup
+  warns you about this). Re-add them per-profile where you want them.
+- To make a dedicated hotkey window open roost, give the roost profile the
+  hotkey (Profiles → roost → Keys) and turn it off on your old hotkey profile.
+- iTerm may offer "Looks like mouse reporting was left on when an ssh session
+  ended…". Don't click Yes (roost needs the mouse). To stop it:
+  `defaults write com.googlecode.iterm2 NoSyncTurnOffMouseReportingOnHostChange -bool false`
 
 If you set iTerm → Profiles → Keys → *Left Option key* to **Esc+**, you also
 get `Opt-1..9`, `Opt-←/→`, and `Opt-n` with no prefix.
@@ -72,5 +93,11 @@ Prefer iTerm's own tabs? `roost --native` uses iTerm's tmux integration.
   (e.g. `set -g prefix C-a`).
 - `ROOST_CLAUDE_CMD` changes how Claude is launched
   (e.g. `export ROOST_CLAUDE_CMD="claude --model opus"`).
+
+## Development
+
+`make install` replaces the binary (it never overwrites in place — macOS kills
+signed binaries that are overwritten while cached). `ROOST_SOCKET` and
+`ROOST_HOME` point roost at a separate tmux server and state folder for testing.
 
 Uninstall the hook and iTerm profile with `roost setup --remove`.
