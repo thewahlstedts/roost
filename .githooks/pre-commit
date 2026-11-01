@@ -1,0 +1,43 @@
+#!/bin/sh
+# Security + quality gate run before every commit. Enable with: make hooks
+# Skip once (e.g. offline) with: git commit --no-verify
+set -u
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+fail=0
+step() { printf '\033[1m→ %s\033[0m\n' "$1"; }
+bad()  { printf '\033[31m✗ %s\033[0m\n' "$1"; fail=1; }
+
+need() {
+	command -v "$1" >/dev/null 2>&1 && return 0
+	bad "$1 not installed (brew install $1)"
+	return 1
+}
+
+step "secret scan (staged changes)"
+# Only look at added lines in the staged diff.
+hits=$(git diff --cached -U0 --no-color | grep '^+' | grep -v '^+++' | grep -nE -e \
+	'-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{40,}|sk-(ant-)?[A-Za-z0-9_-]{20,}|xox[abpr]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|(password|passwd|secret|api[_-]?key|token)[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"'[:space:]]{8,}')
+if [ -n "$hits" ]; then
+	bad "possible secret in staged changes:"
+	echo "$hits" | sed 's/^/    /'
+fi
+
+step "gofmt"
+unformatted=$(gofmt -l .)
+[ -n "$unformatted" ] && bad "not gofmt'd: $unformatted"
+
+step "go vet"
+go vet ./... || bad "go vet failed"
+
+step "staticcheck"
+need staticcheck && { staticcheck ./... || bad "staticcheck found problems"; }
+
+step "govulncheck"
+need govulncheck && { govulncheck ./... >/tmp/roost-govulncheck.$$ 2>&1 || { cat /tmp/roost-govulncheck.$$; bad "govulncheck failed (offline? use --no-verify)"; }; rm -f /tmp/roost-govulncheck.$$; }
+
+if [ "$fail" -ne 0 ]; then
+	printf '\033[31mCommit blocked.\033[0m Fix the above, or bypass once with --no-verify.\n'
+	exit 1
+fi
+printf '\033[32m✓ all checks passed\033[0m\n'

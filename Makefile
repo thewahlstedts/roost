@@ -9,7 +9,11 @@ install: roost
 	cp roost $(PREFIX)/roost
 	@echo "Installed to $(PREFIX)/roost — now run: roost setup"
 
+hooks:
+	git config core.hooksPath .githooks
+	@echo "Pre-commit security checks enabled."
+
 clean:
 	rm -f roost
 
-.PHONY: install clean
+.PHONY: install hooks clean

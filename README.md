@@ -96,6 +96,10 @@ Prefer iTerm's own tabs? `roost --native` uses iTerm's tmux integration.
 
 ## Development
 
+Run `make hooks` once after cloning: every commit then runs a secret scan,
+gofmt, `go vet`, `staticcheck` and `govulncheck` (`brew install staticcheck
+govulncheck`), and is blocked if any fail. Bypass once with `--no-verify`.
+
 `make install` replaces the binary (it never overwrites in place — macOS kills
 signed binaries that are overwritten while cached). `ROOST_SOCKET` and
 `ROOST_HOME` point roost at a separate tmux server and state folder for testing.
