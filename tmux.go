@@ -119,7 +119,8 @@ set -g base-index 1
 setw -g pane-base-index 1
 set -g renumber-windows on
 setw -g automatic-rename on
-setw -g automatic-rename-format "#{b:pane_current_path}"
+# Claude tabs use the folder Claude reports (it can cd without its process moving).
+setw -g automatic-rename-format "#{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}"
 set -g allow-rename off
 set -g set-titles on
 set -g set-titles-string "#W · roost"

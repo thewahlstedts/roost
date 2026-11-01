@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -21,11 +22,17 @@ func runHook() {
 		Session string `json:"session_id"`
 		Reason  string `json:"reason"`
 		Message string `json:"message"`
+		Cwd     string `json:"cwd"`
 	}
 	if json.Unmarshal(data, &ev) != nil {
 		return
 	}
 	setState := func(s string) { tmux("set-option", "-w", "-t", pane, "@roost_state", s) }
+
+	// Name the tab after the folder Claude is working in.
+	if ev.Cwd != "" && ev.Event != "SessionEnd" {
+		tmux("set-option", "-p", "-t", pane, "@roost_dir", filepath.Base(ev.Cwd))
+	}
 
 	switch ev.Event {
 	case "SessionStart":
@@ -57,6 +64,7 @@ func runHook() {
 		if ev.Reason == "prompt_input_exit" || ev.Reason == "logout" {
 			tmux("set-option", "-pu", "-t", pane, "@roost_session")
 			tmux("set-option", "-wu", "-t", pane, "@roost_state")
+			tmux("set-option", "-pu", "-t", pane, "@roost_dir")
 			save()
 		}
 	}
