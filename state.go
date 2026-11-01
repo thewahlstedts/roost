@@ -248,6 +248,7 @@ func restore(st *State) (int, int, error) {
 		tmux("select-window", "-t", activeWin)
 	}
 	tmux("set-option", "-gu", "@roost_restoring")
+	refreshSplitLabels()
 	return len(st.Windows), resumed, nil
 }
 

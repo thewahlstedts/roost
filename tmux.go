@@ -208,8 +208,16 @@ set -g status-interval 5
 set -g status-justify left
 set -g status-style "bg=colour235,fg=colour246"
 set -g message-style "bg=colour237,fg=colour223"
-set -g pane-border-style "fg=colour238"
+# Splits: heavy dividers, the active one in the accent colour, and a label
+# with each split's folder (shown only while a tab is actually split).
+# Line style is the tmux option pane-border-lines: single|double|heavy|simple|number|spaces.
+set -g @roost_split_color colour244
+set -g @roost_split_labels on
+set -g pane-border-lines heavy
+set -g pane-border-style "fg=#{@roost_split_color}"
 set -g pane-active-border-style "fg=#{@roost_accent}"
+set -g pane-border-format "#{?pane_active,#[fg=#{@roost_accent} bold],#[fg=#{@roost_split_color}]} #{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}#{?#{@roost_agent}, · #{@roost_agent},} "
+set-hook -g window-layout-changed "if -F '#{&&:#{>:#{window_panes},1},#{!=:#{@roost_split_labels},off}}' 'set -w pane-border-status top' 'set -w pane-border-status off'"
 set -g status-left-length 16
 set -g status-left "#[fg=#{@roost_accent},bold] 🐓 roost #[default]"
 # Tab markers: which tabs run Claude (a pane with @roost_session) and which don't.
@@ -234,3 +242,28 @@ set-hook -g after-new-window "run -b '@BIN@ save --quiet'"
 
 source-file -q @CUSTOM@
 `
+
+// refreshSplitLabels applies @roost_split_labels to tabs that are already
+// split (the hook only runs when a layout changes).
+func refreshSplitLabels() {
+	out, err := tmux("list-windows", "-a", "-F", "#{window_id} #{window_panes}")
+	if err != nil {
+		return
+	}
+	on := true
+	if v, _ := tmux("show-options", "-gqv", "@roost_split_labels"); strings.TrimSpace(v) == "off" {
+		on = false
+	}
+	for _, line := range strings.Split(out, "\n") {
+		var id string
+		var panes int
+		if _, err := fmt.Sscanf(line, "%s %d", &id, &panes); err != nil {
+			continue
+		}
+		pos := "off"
+		if on && panes > 1 {
+			pos = "top"
+		}
+		tmux("set-option", "-w", "-t", id, "pane-border-status", pos)
+	}
+}

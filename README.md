@@ -184,6 +184,20 @@ set -g @roost_current_tab_color colour255
 set -g @roost_current_tab_bg colour238
 ```
 
+### Splits
+
+Split tabs (`Ctrl-Space |` / `-`) get heavy divider lines, the active split
+outlined in the accent colour, and a label with each split's folder (and CLI)
+while the tab is split.
+
+```
+set -g pane-border-lines heavy        # single | double | heavy | simple | number | spaces
+set -g @roost_split_color colour244   # inactive dividers and labels
+set -g @roost_split_labels on         # off hides the folder labels
+```
+
+The active split uses `@roost_accent`.
+
 ### Tab markers
 
 Tabs not running an AI CLI (shells, servers, other programs) get a dim `$`

@@ -77,6 +77,7 @@ func main() {
 			// Apply the latest config (e.g. Cmd+arrow keys) to the live roost.
 			if err = writeConf(); err == nil {
 				_, err = tmux("source-file", confPath())
+				refreshSplitLabels()
 				fmt.Println("Reloaded the running roost.")
 			}
 		}
@@ -135,6 +136,7 @@ func cmdOpen(native bool) error {
 	var notice string
 	if serverRunning() {
 		tmux("source-file", confPath())
+		refreshSplitLabels()
 	} else if st, err := loadState(statePath()); err == nil && len(st.Windows) > 0 {
 		tabs, resumed, err := restore(st)
 		if err != nil {
