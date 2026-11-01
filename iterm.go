@@ -67,7 +67,7 @@ func defaultProfile() (name string, keymap map[string]any) {
 // setupITerm writes an iTerm "Dynamic Profile" named roost: it is your
 // default profile plus Cmd+Left/Right for switching roost tabs, and it runs
 // roost when a window opens. Your other profiles are untouched.
-func setupITerm(remove bool) error {
+func setupITerm(remove bool, shortcut string) error {
 	path := itermProfilePath()
 	if remove {
 		if err := os.Remove(path); err == nil {
@@ -91,7 +91,22 @@ func setupITerm(remove bool) error {
 		"Guid":         itermProfileGUID,
 		"Initial Text": shellQuote(selfPath()),
 		"Keyboard Map": keymap,
-		"Shortcut":     "R", // Ctrl+Cmd+R opens a roost window
+	}
+	// Ctrl+Cmd+<letter> opens a roost window: --shortcut wins, then whatever
+	// the profile had before (so re-running setup keeps it), then R.
+	switch sc := strings.ToUpper(strings.TrimSpace(shortcut)); {
+	case sc == "NONE":
+		profile["Shortcut"] = "" // empty (not missing) so re-running setup keeps "none"
+	case len(sc) == 1 && sc[0] >= 'A' && sc[0] <= 'Z':
+		profile["Shortcut"] = sc
+	case sc != "":
+		return fmt.Errorf("--shortcut must be a single letter A-Z or 'none'")
+	default:
+		if old, ok := existingProfileValue(path, "Shortcut"); ok {
+			profile["Shortcut"] = old
+		} else {
+			profile["Shortcut"] = "R"
+		}
 	}
 	icon := filepath.Join(homeDir(), "roost.png")
 	if os.MkdirAll(homeDir(), 0o755) == nil && os.WriteFile(icon, iconPNG, 0o644) == nil {
@@ -115,6 +130,9 @@ func setupITerm(remove bool) error {
 		return err
 	}
 	fmt.Println("Added an iTerm profile named \"roost\" (Cmd+←/→ switches roost tabs).")
+	if sc, ok := profile["Shortcut"].(string); ok && sc != "" {
+		fmt.Printf("  Ctrl+Cmd+%s opens a roost window (change with: roost setup --shortcut X | none).\n", sc)
+	}
 	fmt.Println("  Open it from iTerm's Profiles menu, or make it your default profile.")
 	// iTerm's global key bindings beat profile ones, and its defaults use
 	// Cmd+arrows for tab switching — which would swallow our keys.
@@ -149,4 +167,20 @@ func existingHotkey(path string) map[string]any {
 		}
 	}
 	return out
+}
+
+// existingProfileValue reads one key from a previously written roost profile.
+func existingProfileValue(path, key string) (any, bool) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, false
+	}
+	var f struct {
+		Profiles []map[string]any `json:"Profiles"`
+	}
+	if json.Unmarshal(b, &f) != nil || len(f.Profiles) == 0 {
+		return nil, false
+	}
+	v, ok := f.Profiles[0][key]
+	return v, ok
 }

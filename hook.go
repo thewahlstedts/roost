@@ -39,6 +39,7 @@ func runHook() {
 		if validSessionID(ev.Session) {
 			tmux("set-option", "-p", "-t", pane, "@roost_session", ev.Session)
 		}
+		tmux("set-option", "-p", "-t", pane, "@roost_agent", "claude")
 		setState("idle")
 		save()
 	case "UserPromptSubmit", "PostToolUse":
@@ -63,6 +64,7 @@ func runHook() {
 		// reboot/kill must NOT clear it, or we couldn't resume it later.
 		if ev.Reason == "prompt_input_exit" || ev.Reason == "logout" {
 			tmux("set-option", "-pu", "-t", pane, "@roost_session")
+			tmux("set-option", "-pu", "-t", pane, "@roost_agent")
 			tmux("set-option", "-wu", "-t", pane, "@roost_state")
 			tmux("set-option", "-pu", "-t", pane, "@roost_dir")
 			save()

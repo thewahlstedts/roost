@@ -138,7 +138,7 @@ bind C-Space send-prefix
 # Start from a clean slate so only the keys below exist.
 unbind -a -T prefix
 bind C-Space send-prefix
-bind n   display-popup -E -w 80% -h 70% -T " New Claude tab " -d "#{pane_current_path}" "@BIN@ pick"
+bind n   display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick"
 bind t   new-window -c "#{pane_current_path}"
 bind r   command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\""
 bind x   confirm-before -p "Close tab '#W'? (y/n)" kill-window
@@ -171,7 +171,7 @@ bind -n User1 next-window
 # No-prefix shortcuts (need iTerm: Profiles > Keys > Left Option key = Esc+)
 bind -n M-Left  previous-window
 bind -n M-Right next-window
-bind -n M-n display-popup -E -w 80% -h 70% -T " New Claude tab " -d "#{pane_current_path}" "@BIN@ pick"
+bind -n M-n display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick"
 bind -n M-1 select-window -t :=1
 bind -n M-2 select-window -t :=2
 bind -n M-3 select-window -t :=3
@@ -183,21 +183,35 @@ bind -n M-8 select-window -t :=8
 bind -n M-9 select-window -t :=9
 
 # ---- mouse ----
-bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New Claude tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 70 -h 23 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
+bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 70 -h 23 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
 bind -n DoubleClick1Status command-prompt -I "#W" -p "Rename tab:" "rename-window -t = -- \"%%%\""
 bind -T copy-mode MouseDragEnd1Pane send -X copy-pipe-and-cancel "pbcopy"
 bind -T copy-mode-vi MouseDragEnd1Pane send -X copy-pipe-and-cancel "pbcopy"
 
 # ---- look ----
+# Theme colours (override any in custom.conf). Any tmux colour works:
+# a name (green), colourN, or #rrggbb.
+set -g @roost_accent "#e0473a"
+set -g @roost_waiting_color colour203
+set -g @roost_working_color colour221
+set -g @roost_done_color colour114
+set -g @roost_new_color colour114
+set -g @roost_tab_color colour246
+set -g @roost_current_tab_color colour255
+set -g @roost_current_tab_bg colour238
+# CLI for new tabs (claude, pi, codex, grok, or your own; see README "Other CLIs").
+# (Not "@roost_agent": that's the per-tab tag, and a global of the same name
+# would leak into every tab through tmux's option inheritance.)
+set -g @roost_default_agent claude
 set -g status-position bottom
 set -g status-interval 5
 set -g status-justify left
 set -g status-style "bg=colour235,fg=colour246"
 set -g message-style "bg=colour237,fg=colour223"
 set -g pane-border-style "fg=colour238"
-set -g pane-active-border-style "fg=#e0473a"
+set -g pane-active-border-style "fg=#{@roost_accent}"
 set -g status-left-length 16
-set -g status-left "#[fg=#e0473a,bold] 🐓 roost #[default]"
+set -g status-left "#[fg=#{@roost_accent},bold] 🐓 roost #[default]"
 # Tab markers: which tabs run Claude (a pane with @roost_session) and which don't.
 # Override in custom.conf. @roost_marker: shell (default) | claude | both | none
 set -g @roost_marker shell
@@ -206,12 +220,12 @@ set -g @roost_claude_marker '✳'
 # Any tmux colour: a name (green), colourN, or #rrggbb.
 set -g @roost_shell_marker_color colour242
 set -g @roost_claude_marker_color colour242
-set -g @roost_tab_marker "#{?#{@roost_session},#{?#{||:#{==:#{@roost_marker},claude},#{==:#{@roost_marker},both}},#[fg=#{@roost_claude_marker_color}]#{@roost_claude_marker} ,},#{?#{||:#{==:#{@roost_marker},shell},#{==:#{@roost_marker},both}},#[fg=#{@roost_shell_marker_color}]#{@roost_shell_marker} ,}}"
+set -g @roost_tab_marker "#{?#{||:#{@roost_agent},#{@roost_session}},#{?#{||:#{==:#{@roost_marker},claude},#{==:#{@roost_marker},both}},#[fg=#{@roost_claude_marker_color}]#{@roost_claude_marker} ,},#{?#{||:#{==:#{@roost_marker},shell},#{==:#{@roost_marker},both}},#[fg=#{@roost_shell_marker_color}]#{@roost_shell_marker} ,}}"
 set -g window-status-separator "#[fg=colour239]│"
-set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=colour203]● ,#{?#{==:#{@roost_state},working},#[fg=colour221]● ,#{?#{==:#{@roost_state},done},#[fg=colour114]● ,}}}#{E:@roost_tab_marker}#[fg=colour246]#I #W "
-set -g window-status-current-format "#[bg=colour238,fg=colour255,bold] #{?#{==:#{@roost_state},waiting},#[fg=colour203]● ,#{?#{==:#{@roost_state},working},#[fg=colour221]● ,}}#{E:@roost_tab_marker}#[fg=colour255]#I #W "
+set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,#{?#{==:#{@roost_state},done},#[fg=#{@roost_done_color}]● ,}}}#{E:@roost_tab_marker}#[fg=#{@roost_tab_color}]#I #W "
+set -g window-status-current-format "#[bg=#{@roost_current_tab_bg},fg=#{@roost_current_tab_color},bold] #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,}}#{E:@roost_tab_marker}#[fg=#{@roost_current_tab_color}]#I #W "
 set -g status-right-length 60
-set -g status-right "#(@BIN@ save --quiet)#[range=user|new]#[fg=colour114,bold] + new #[norange default]#[range=user|help]#[fg=colour242] ? help #[norange default]"
+set -g status-right "#(@BIN@ save --quiet)#[range=user|new]#[fg=#{@roost_new_color},bold] + new #[norange default]#[range=user|help]#[fg=colour242] ? help #[norange default]"
 
 # Seeing a finished tab clears its green dot.
 set-hook -g session-window-changed "if -F '#{==:#{@roost_state},done}' 'set -w @roost_state idle'"

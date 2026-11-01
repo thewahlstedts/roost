@@ -14,9 +14,11 @@ import (
 )
 
 type Pane struct {
-	Dir    string `json:"dir"`
-	Claude string `json:"claude,omitempty"` // Claude Code session id running in this pane
-	Active bool   `json:"active,omitempty"`
+	Dir     string `json:"dir"`
+	Agent   string `json:"agent,omitempty"`   // CLI running in this pane (claude, pi, …); "" = shell
+	Session string `json:"session,omitempty"` // that CLI's session id, when it supports one
+	Claude  string `json:"claude,omitempty"`  // legacy: Claude session id (pre-agents state files)
+	Active  bool   `json:"active,omitempty"`
 }
 
 type Window struct {
@@ -42,6 +44,7 @@ func snapshot() (*State, error) {
 	f := strings.Join([]string{
 		"#{window_index}", "#{window_name}", "#{window_active}", "#{window_layout}",
 		"#{pane_current_path}", "#{pane_active}", "#{@roost_session}", "#{automatic-rename}",
+		"#{@roost_agent}", "#{pane_current_command}", "#{pane_id}", "#{@roost_started}",
 	}, sep)
 	out, err := tmux("list-panes", "-s", "-t", sessionName, "-F", f)
 	if err != nil {
@@ -52,7 +55,7 @@ func snapshot() (*State, error) {
 	var order []int
 	for _, line := range strings.Split(out, "\n") {
 		p := strings.Split(line, sep)
-		if len(p) != 8 {
+		if len(p) != 12 {
 			continue
 		}
 		idx, _ := strconv.Atoi(p[0])
@@ -62,7 +65,21 @@ func snapshot() (*State, error) {
 			byIdx[idx] = w
 			order = append(order, idx)
 		}
-		w.Panes = append(w.Panes, Pane{Dir: p[4], Active: p[5] == "1", Claude: p[6]})
+		pane := Pane{Dir: p[4], Active: p[5] == "1", Agent: p[8], Session: p[6]}
+		if pane.Agent == "" && pane.Session != "" {
+			pane.Agent = "claude" // tagged by the Claude hook / older roost
+		}
+		// Only Claude tells us (via its hook) when you quit it. For other CLIs,
+		// a pane that's back at a shell prompt means the CLI has exited.
+		// (Ignore the first seconds after launch, before the CLI has started.)
+		started, _ := strconv.ParseInt(p[11], 10, 64)
+		if pane.Agent != "" && pane.Agent != "claude" && isShell(p[9]) && time.Now().Unix()-started > agentGrace {
+			tmux("set-option", "-pu", "-t", p[10], "@roost_agent")
+			tmux("set-option", "-pu", "-t", p[10], "@roost_session")
+			tmux("set-option", "-pu", "-t", p[10], "@roost_started")
+			pane.Agent, pane.Session = "", ""
+		}
+		w.Panes = append(w.Panes, pane)
 	}
 	sort.Ints(order)
 	for _, i := range order {
@@ -79,6 +96,15 @@ func loadState(path string) (*State, error) {
 	var st State
 	if err := json.Unmarshal(b, &st); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	for wi := range st.Windows {
+		for pi := range st.Windows[wi].Panes {
+			p := &st.Windows[wi].Panes[pi]
+			if p.Claude != "" && p.Session == "" {
+				p.Agent, p.Session = "claude", p.Claude
+			}
+			p.Claude = ""
+		}
 	}
 	return &st, nil
 }
@@ -151,13 +177,6 @@ func claudeDir() string {
 	return filepath.Join(h, ".claude")
 }
 
-func claudeCmd() string {
-	if c := os.Getenv("ROOST_CLAUDE_CMD"); c != "" {
-		return c
-	}
-	return "claude"
-}
-
 func existingDir(d string) string {
 	if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 		return d
@@ -217,18 +236,11 @@ func restore(st *State) (int, int, error) {
 			if p.Active {
 				tmux("select-pane", "-t", ids[i])
 			}
-			if p.Claude == "" {
+			if p.Agent == "" {
 				continue
 			}
-			if claudeSessionExists(p.Claude) {
-				tmux("set-option", "-p", "-t", ids[i], "@roost_session", p.Claude)
-				tmux("send-keys", "-t", ids[i], claudeCmd()+" --resume "+p.Claude, "Enter")
+			if resumeAgent(ids[i], p) {
 				resumed++
-			} else {
-				// Conversation never got a message (so nothing on disk): start fresh.
-				id := uuid()
-				tmux("set-option", "-p", "-t", ids[i], "@roost_session", id)
-				tmux("send-keys", "-t", ids[i], claudeCmd()+" --session-id "+id, "Enter")
 			}
 		}
 	}
@@ -237,4 +249,50 @@ func restore(st *State) (int, int, error) {
 	}
 	tmux("set-option", "-gu", "@roost_restoring")
 	return len(st.Windows), resumed, nil
+}
+
+// resumeAgent restarts the pane's CLI after a restart. It returns true when it
+// picked up a previous conversation (rather than starting fresh).
+func resumeAgent(pane string, p Pane) bool {
+	a, err := lookupAgent(p.Agent)
+	if err != nil {
+		tmux("send-keys", "-t", pane, "# roost: "+err.Error(), "Enter")
+		return false
+	}
+	id := p.Session
+	resumable := strings.TrimSpace(a.Resume) != ""
+	if strings.Contains(a.Resume, "{id}") {
+		resumable = validSessionID(id)
+		// Claude only writes a transcript after the first message; if there's
+		// none, resuming would fail, so start that tab fresh instead.
+		if a.Name == "claude" && !claudeSessionExists(id) {
+			resumable = false
+		}
+	}
+	cmd := ""
+	if resumable {
+		cmd = a.ResumeCmd(id)
+	} else {
+		if a.UsesID() {
+			id = uuid()
+		} else {
+			id = ""
+		}
+		cmd = a.StartCmd(id)
+	}
+	markAgent(pane, a.Name)
+	if id != "" {
+		tmux("set-option", "-p", "-t", pane, "@roost_session", id)
+	}
+	tmux("send-keys", "-t", pane, cmd, "Enter")
+	return resumable
+}
+
+// agentGrace is how long after launching a CLI roost waits before treating a
+// shell prompt in that pane as "the CLI has exited".
+const agentGrace = 15
+
+func markAgent(pane, name string) {
+	tmux("set-option", "-p", "-t", pane, "@roost_agent", name)
+	tmux("set-option", "-p", "-t", pane, "@roost_started", strconv.FormatInt(time.Now().Unix(), 10))
 }

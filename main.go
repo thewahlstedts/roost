@@ -19,8 +19,9 @@ const version = "0.1.0"
 const usage = `roost — keep your Claude tabs alive, even across restarts.
 
   roost                 open roost (restores your tabs after a restart)
-  roost new [dir]       new Claude tab in dir (default: current folder)
-      --shell             plain shell tab instead of Claude
+  roost new [dir]       new tab running your CLI (default: claude) in dir
+      --agent NAME        use another CLI: pi, codex, grok, or one you define
+      --shell             plain shell tab instead
       --name NAME         fixed tab name (default: follows the folder)
   roost ls              list tabs (running, or last saved)
   roost save            save now (roost also saves automatically)
@@ -29,6 +30,7 @@ const usage = `roost — keep your Claude tabs alive, even across restarts.
   roost kill            save, then close everything
   roost setup           install the Claude hook (run once)
       --remove            uninstall it
+      --shortcut X        Ctrl+Cmd+X opens roost in iTerm (default R; 'none')
   roost keys            show keyboard shortcuts
 
   Add --native to 'roost' to use iTerm's native tabs (tmux -CC).
@@ -69,7 +71,7 @@ func main() {
 	case "setup":
 		err = setup(hasFlag(args, "--remove"))
 		if err == nil {
-			err = setupITerm(hasFlag(args, "--remove"))
+			err = setupITerm(hasFlag(args, "--remove"), flagValue(args, "--shortcut"))
 		}
 		if err == nil && serverRunning() {
 			// Apply the latest config (e.g. Cmd+arrow keys) to the live roost.
@@ -141,7 +143,7 @@ func cmdOpen(native bool) error {
 		notice = fmt.Sprintf("roost: restored %d tab(s), resumed %d Claude session(s)", tabs, resumed)
 	} else {
 		cwd, _ := os.Getwd()
-		if _, err := newTab(cwd, "", true); err != nil {
+		if _, err := newTab(cwd, "", ""); err != nil {
 			return err
 		}
 		notice = "roost: welcome! Click '+ new' or press Ctrl-Space n for a Claude tab"
@@ -172,7 +174,7 @@ func cmdNew(args []string) error {
 	dir := ""
 	for i := 0; i < len(args); i++ {
 		a := args[i]
-		if a == "--name" || a == "--dir" {
+		if a == "--name" || a == "--dir" || a == "--agent" {
 			if a == "--dir" && i+1 < len(args) {
 				dir = args[i+1]
 			}
@@ -191,7 +193,14 @@ func cmdNew(args []string) error {
 		return fmt.Errorf("not a folder: %s", dir)
 	}
 	started := !serverRunning()
-	if _, err := newTab(dir, flagValue(args, "--name"), hasFlag(args, "--shell")); err != nil {
+	agent := ""
+	if !hasFlag(args, "--shell") {
+		agent = flagValue(args, "--agent")
+		if agent == "" {
+			agent = useDefaultAgent
+		}
+	}
+	if _, err := newTab(dir, flagValue(args, "--name"), agent); err != nil {
 		return err
 	}
 	if !insideRoost() {
@@ -205,7 +214,13 @@ func cmdNew(args []string) error {
 
 // newTab opens a tab (starting roost if needed) and, unless shell is set,
 // launches Claude with a known session id so it can be resumed later.
-func newTab(dir, name string, shell bool) (string, error) {
+// useDefaultAgent asks newTab to use the configured default CLI.
+const useDefaultAgent = "\x00default"
+
+// newTab opens a tab (starting roost if needed) and runs agent in it ("" for
+// a plain shell). The agent is looked up after the tab exists, so roost's
+// config (custom.conf) is loaded and custom CLIs resolve.
+func newTab(dir, name, agent string) (string, error) {
 	var nameArg []string
 	if name != "" {
 		nameArg = []string{"-n", name} // pinned; otherwise it follows the folder
@@ -223,10 +238,22 @@ func newTab(dir, name string, shell bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !shell {
-		id := uuid()
-		tmux("set-option", "-p", "-t", pane, "@roost_session", id)
-		tmux("send-keys", "-t", pane, claudeCmd()+" --session-id "+id, "Enter")
+	if agent == useDefaultAgent {
+		agent = defaultAgent()
+	}
+	if agent != "" {
+		ag, err := lookupAgent(agent)
+		if err != nil {
+			tmux("send-keys", "-t", pane, "# roost: "+err.Error(), "Enter")
+			return pane, err
+		}
+		id := ""
+		if ag.UsesID() {
+			id = uuid()
+			tmux("set-option", "-p", "-t", pane, "@roost_session", id)
+		}
+		markAgent(pane, ag.Name)
+		tmux("send-keys", "-t", pane, ag.StartCmd(id), "Enter")
 	}
 	save()
 	return pane, nil
@@ -306,15 +333,15 @@ func cmdList() error {
 			mark = "*"
 		}
 		for j, p := range w.Panes {
-			kind := "shell "
-			if p.Claude != "" {
-				kind = "claude"
+			kind := "shell"
+			if p.Agent != "" {
+				kind = p.Agent
 			}
 			head := fmt.Sprintf("%s %d %-18s", mark, i+1, w.Name)
 			if j > 0 {
 				head = strings.Repeat(" ", len(head))
 			}
-			fmt.Printf("%s  %s  %s\n", head, kind, tilde(p.Dir))
+			fmt.Printf("%s  %-6s  %s\n", head, kind, tilde(p.Dir))
 		}
 	}
 	return nil
@@ -342,8 +369,8 @@ const keysHelp = `
     click a tab ............... go to it
 
   New tab
-    click "+ new" ............. new Claude tab (pick a folder)
-    Ctrl-Space, then n ........ new Claude tab
+    click "+ new" ............. new tab (pick a folder; Tab = CLI)
+    Ctrl-Space, then n ........ new tab running your CLI
     Ctrl-Space, then t ........ new shell tab in this folder
 
   "Ctrl-Space, then" = hold Control, tap Space, let go,
@@ -359,7 +386,7 @@ const keysHelp = `
 // helpMenu waits for a key while the help popup is open, so it doubles as a
 // menu: n / t open tabs right away, anything else closes it.
 func helpMenu() error {
-	fmt.Print("\n  \x1b[1mn\x1b[0m new Claude tab · \x1b[1mt\x1b[0m shell tab · any other key closes")
+	fmt.Print("\n  \x1b[1mn\x1b[0m new tab · \x1b[1mt\x1b[0m shell tab · any other key closes")
 	fd := int(os.Stdin.Fd())
 	old, err := term.MakeRaw(fd)
 	if err != nil {
@@ -376,7 +403,7 @@ func helpMenu() error {
 		return pick()
 	case 't':
 		cwd, _ := os.Getwd()
-		_, err := newTab(cwd, "", true)
+		_, err := newTab(cwd, "", "")
 		return err
 	}
 	return nil

@@ -124,6 +124,9 @@ func pick() error {
 	fmt.Fprint(w, "\x1b[?25l")
 	defer fmt.Fprint(w, "\x1b[?25h\x1b[2J\x1b[H")
 
+	accent := accentSGR()
+	agents := pickerAgents()
+	ai := 0
 	query, sel, top := "", 0, 0
 	buf := make([]byte, 16)
 	for {
@@ -157,7 +160,7 @@ func pick() error {
 
 		var b strings.Builder
 		b.WriteString("\x1b[2J\x1b[H")
-		fmt.Fprintf(&b, " \x1b[1;38;2;224;71;58m›\x1b[0m %s\x1b[38;5;242m▏\x1b[0m\r\n\r\n", query)
+		fmt.Fprintf(&b, " \x1b[1;%sm›\x1b[0m %s\x1b[38;5;242m▏\x1b[0m\x1b[%dG\x1b[1;%sm%s\x1b[0m\r\n\r\n", accent, query, max(width-len(agents[ai])-1, 1), accent, agents[ai])
 		for i := top; i < len(list) && i < top+rows; i++ {
 			extra := ""
 			if i == 0 && list[i] == cwd && q == "" {
@@ -168,7 +171,11 @@ func pick() error {
 		if len(list) == 0 {
 			b.WriteString("    \x1b[38;5;242mno matches — type a path like ~/code/thing\x1b[0m\r\n")
 		}
-		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open Claude · esc cancel\x1b[0m", h)
+		agentHint := ""
+		if len(agents) > 1 {
+			agentHint = " · tab switch CLI"
+		}
+		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open %s%s · esc\x1b[0m", h, agents[ai], agentHint)
 		fmt.Fprint(w, b.String())
 
 		n, err := os.Stdin.Read(buf)
@@ -184,13 +191,17 @@ func pick() error {
 				continue
 			}
 			term.Restore(fd, old)
-			_, err := newTab(list[sel], "", false)
+			_, err := newTab(list[sel], "", agents[ai])
 			return err
 		case n == 1 && (k[0] == 127 || k[0] == 8):
 			if r := []rune(query); len(r) > 0 {
 				query = string(r[:len(r)-1])
 			}
 			sel = 0
+		case n == 1 && k[0] == 9: // tab: next CLI
+			ai = (ai + 1) % len(agents)
+		case n >= 3 && k[0] == 27 && k[1] == '[' && k[2] == 'Z': // shift-tab
+			ai = (ai + len(agents) - 1) % len(agents)
 		case n == 1 && k[0] == 21: // ctrl-u
 			query, sel = "", 0
 		case n == 1 && (k[0] == 16 || k[0] == 11): // ctrl-p / ctrl-k
@@ -257,4 +268,40 @@ func row(dir, extra string, selected bool, width int) string {
 		return fmt.Sprintf(" \x1b[48;5;238;38;5;255;1m ▸ %s \x1b[22;38;5;246m%s \x1b[0m\r\n", name, parent)
 	}
 	return fmt.Sprintf("    \x1b[38;5;252m%s \x1b[38;5;242m%s\x1b[0m\r\n", name, parent)
+}
+
+// accentSGR turns the @roost_accent tmux colour into an ANSI colour code so
+// the picker matches the bar. Falls back to roost's red.
+func accentSGR() string {
+	const fallback = "38;2;224;71;58"
+	c, err := tmux("show-options", "-gqv", "@roost_accent")
+	if err != nil {
+		return fallback
+	}
+	return colourSGR(strings.TrimSpace(c), fallback)
+}
+
+func colourSGR(c, fallback string) string {
+	c = strings.ToLower(c)
+	basic := map[string]int{"black": 0, "red": 1, "green": 2, "yellow": 3, "blue": 4, "magenta": 5, "cyan": 6, "white": 7}
+	var r, g, b, n int
+	switch {
+	case len(c) == 7 && c[0] == '#':
+		if _, err := fmt.Sscanf(c, "#%02x%02x%02x", &r, &g, &b); err == nil {
+			return fmt.Sprintf("38;2;%d;%d;%d", r, g, b)
+		}
+	case strings.HasPrefix(c, "colour") || strings.HasPrefix(c, "color"):
+		if _, err := fmt.Sscanf(strings.TrimPrefix(strings.TrimPrefix(c, "colour"), "color"), "%d", &n); err == nil && n >= 0 && n < 256 {
+			return fmt.Sprintf("38;5;%d", n)
+		}
+	case strings.HasPrefix(c, "bright"):
+		if v, ok := basic[strings.TrimPrefix(c, "bright")]; ok {
+			return fmt.Sprintf("%d", 90+v)
+		}
+	default:
+		if v, ok := basic[c]; ok {
+			return fmt.Sprintf("%d", 30+v)
+		}
+	}
+	return fallback
 }
