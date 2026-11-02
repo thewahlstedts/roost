@@ -39,10 +39,10 @@ checksum:
 signs:
   - artifacts: checksum
     cmd: go
-    args: ["run", "./tools/sign", "${artifact}", "${signature}"]
+    # The release workflow writes the key here (0600) and deletes it after.
+    # A file, not an env var: GoReleaser doesn't pass arbitrary env through.
+    args: ["run", "./tools/sign", "-key", "/tmp/roost-signing.key", "${artifact}", "${signature}"]
     signature: "${artifact}.sig"
-    env:
-      - ROOST_SIGNING_KEY={{ .Env.ROOST_SIGNING_KEY }}
 
 changelog:
   sort: asc
