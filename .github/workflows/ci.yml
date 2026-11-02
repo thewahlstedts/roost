@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  # Weekly run so govulncheck and the secret scan catch newly published
+  # advisories even in weeks with no commits.
+  schedule:
+    - cron: "17 6 * * 1"
 
 permissions:
   contents: read
@@ -45,6 +49,9 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: shellcheck (installer, git hook)
+        run: shellcheck install.sh .githooks/pre-commit
+
       - uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
         with:
           install-go: false
@@ -52,6 +59,22 @@ jobs:
       - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
         with:
           go-version-file: go.mod
+
+  # roost's main platform; ubuntu above covers Linux.
+  macos:
+    name: Test (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
 
   secrets:
     name: Secret scan

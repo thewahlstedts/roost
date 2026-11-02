@@ -177,6 +177,7 @@ check_path() {
 	*":$PREFIX:"*) ;;
 	*)
 		warn "$PREFIX is not on your PATH. Add this to your shell's rc file (~/.zshrc, ~/.bashrc):"
+		# shellcheck disable=SC2016 # print a literal $PATH for the user to paste
 		printf '    export PATH="%s:$PATH"\n' "$PREFIX" >&2
 		;;
 	esac
