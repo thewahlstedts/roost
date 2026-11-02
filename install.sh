@@ -3,8 +3,6 @@
 #
 # From a clone:     ./install.sh
 # Via pipe:         curl -fsSL https://raw.githubusercontent.com/thewahlstedts/roost/master/install.sh | sh
-#                   (only once the repo is public; while it's private use
-#                    gh api -H 'Accept: application/vnd.github.raw' repos/thewahlstedts/roost/contents/install.sh | sh)
 #
 # Environment overrides:
 #   ROOST_PREFIX (or PREFIX)  install dir            (default: ~/.local/bin)
@@ -93,7 +91,6 @@ fetch_release() {
 	mkdir -p "$dl"
 
 	if have gh && gh auth status >/dev/null 2>&1; then
-		# Works for private repos too, using the user's gh login.
 		tag_arg=""
 		[ "$VERSION" = "latest" ] || tag_arg="$VERSION"
 		# shellcheck disable=SC2086 # empty tag_arg means "latest"
@@ -139,9 +136,8 @@ get_source() { # prints the source dir
 		printf '%s\n' "$src"
 		return 0
 	fi
-	die "could not clone $REPO (it may be private). Try:
-    gh auth login
-    gh repo clone $REPO && cd roost && ./install.sh"
+	die "could not clone $REPO. Check your network, or try:
+    git clone https://github.com/$REPO.git && cd roost && ./install.sh"
 }
 
 build_from_source() {

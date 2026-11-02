@@ -25,19 +25,19 @@ that aren't running an AI CLI (see [Tab markers](#tab-markers)).
 
 ## Install
 
-Needs macOS, [Homebrew](https://brew.sh) `tmux` and `jq`, Go (to build), and
-the GitHub CLI logged in to an account with access to this repo.
+Needs macOS and [Homebrew](https://brew.sh) `tmux` and `jq` (the installer
+offers to install them). Go is only needed when there's no release binary yet.
 
 ```sh
-gh repo clone thewahlstedts/roost && cd roost
-./install.sh      # checks deps, builds, installs to ~/.local/bin/roost
+curl -fsSL https://raw.githubusercontent.com/thewahlstedts/roost/master/install.sh | sh
 roost setup       # Claude hook + iTerm profile (see "What setup changes")
 ```
 
-Or in one line, without keeping a clone:
+Or from a clone:
 
 ```sh
-gh api -H 'Accept: application/vnd.github.raw' repos/thewahlstedts/roost/contents/install.sh | sh
+git clone https://github.com/thewahlstedts/roost.git && cd roost
+./install.sh      # checks deps, builds, installs to ~/.local/bin/roost
 ```
 
 The installer is safe to re-run (that's also how you upgrade). It offers to
