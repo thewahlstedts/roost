@@ -15,6 +15,9 @@ jobs:
   release:
     name: GoReleaser
     runs-on: ubuntu-latest
+    # The signing key lives in the "release" environment, which needs a
+    # maintainer's approval before this job runs.
+    environment: release
     permissions:
       contents: write # create the release and upload assets
     steps:
@@ -34,3 +37,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ROOST_SIGNING_KEY: ${{ secrets.ROOST_SIGNING_KEY }}

@@ -19,10 +19,10 @@ builds:
       - amd64
     flags:
       - -trimpath
-    # main.version is a const today, so no -X injection; bump it in main.go
-    # before tagging.
+    # Stamp the version from the tag. Builds without it report "dev" and
+    # never auto-update.
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
 
 archives:
   - formats: [tar.gz]
@@ -33,6 +33,16 @@ archives:
 checksum:
   name_template: checksums.txt
   algorithm: sha256
+
+# Sign checksums.txt with roost's ed25519 release key (tools/sign). roost
+# update refuses releases without a valid checksums.txt.sig.
+signs:
+  - artifacts: checksum
+    cmd: go
+    args: ["run", "./tools/sign", "${artifact}", "${signature}"]
+    signature: "${artifact}.sig"
+    env:
+      - ROOST_SIGNING_KEY={{ .Env.ROOST_SIGNING_KEY }}
 
 changelog:
   sort: asc
