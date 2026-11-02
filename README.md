@@ -8,7 +8,7 @@ every tab reopens in the right folder, back in the conversation it had before
 (`claude --resume <id>`, `pi --session-id <id>`, …).
 
 ```
- 🐓 roost  1 api │ ● 2 web │ $ 3 notes                       + new  ? help
+ 🐓 roost v0.3.1  1 api │ ● 2 web │ $ 3 notes                + new  ? help
 ```
 
 A dot on a tab means:
@@ -220,6 +220,7 @@ Any tmux colour works: a name (`green`, `brightyellow`), `colourN`, or
 
 ```
 set -g @roost_accent "#e0473a"          # 🐓 roost label, folder picker, active split
+set -g @roost_version_color colour242   # version next to the label
 set -g @roost_waiting_color colour203   # dot: Claude needs you
 set -g @roost_working_color colour221   # dot: working
 set -g @roost_done_color colour114      # dot: finished while you were away

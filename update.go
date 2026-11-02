@@ -304,6 +304,9 @@ func cmdUpdate(args []string) error {
 		return err
 	}
 	if res.Updated {
+		if serverRunning() {
+			tmux("set", "-g", "@roost_version", res.Latest)
+		}
 		fmt.Printf("Updated roost %s → %s. Open roost again to load everything new.\n", version, res.Latest)
 	} else {
 		fmt.Printf("roost %s is up to date.\n", version)
@@ -357,6 +360,7 @@ func runAutoUpdate() {
 		fmt.Printf("%s update check failed: %v\n", stamp, err)
 	case res.Updated:
 		fmt.Printf("%s updated %s -> %s\n", stamp, version, res.Latest)
+		tmux("set", "-g", "@roost_version", res.Latest) // status bar shows it now
 		tmux("display-message", "-d", "8000", "roost: updated to "+res.Latest+" — open roost again to load everything new")
 	case res.Newer:
 		fmt.Printf("%s %s available\n", stamp, res.Latest)
