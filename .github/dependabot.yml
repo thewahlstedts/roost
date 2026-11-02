@@ -1,10 +1,27 @@
+# Dependabot keeps dependencies current. Security fixes are opened as soon as
+# an advisory lands (repo setting "Dependabot security updates"); routine
+# version bumps are batched weekly. Every PR must pass CI before merging
+# (master ruleset).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps"
+    groups:
+      go-minor-and-patch:
+        update-types: ["minor", "patch"]
