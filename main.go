@@ -18,7 +18,7 @@ import (
 // Anything else is a dev build, which never auto-updates.
 var version = "dev"
 
-const usage = `roost — keep your Claude tabs alive, even across restarts.
+const usage = `roost — keep your AI coding CLI tabs alive, even across restarts.
 
   roost                 open roost (restores your tabs after a restart)
   roost new [dir]       new tab running your CLI (default: claude) in dir
@@ -407,7 +407,7 @@ const keysHelp = `
     <    move left      >  move right
 
   Mouse: double-click a tab to rename · scroll · drag to copy
-  Tabs marked $ aren't running Claude (README: Tab markers)
+  Tabs marked $ aren't running an AI CLI (README: Tab markers)
 `
 
 // helpMenu waits for a key while the help popup is open, so it doubles as a

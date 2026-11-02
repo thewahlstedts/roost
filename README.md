@@ -3,7 +3,7 @@
 A simple home for your AI coding CLI tabs that **comes back after a restart**.
 Built for Claude Code; also runs pi, Codex, Devin, Grok, or any CLI you configure.
 
-Open a few tabs in different projects, restart your Mac, type `roost`, and
+Open a few tabs in different projects, restart your computer, type `roost`, and
 every tab reopens in the right folder, back in the conversation it had before
 (`claude --resume <id>`, `pi --session-id <id>`, …).
 
