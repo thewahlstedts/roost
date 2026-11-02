@@ -30,6 +30,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Write signing key
+        env:
+          ROOST_SIGNING_KEY: ${{ secrets.ROOST_SIGNING_KEY }}
+        run: |
+          test -n "$ROOST_SIGNING_KEY" || { echo "ROOST_SIGNING_KEY secret is missing"; exit 1; }
+          (umask 077; printf '%s\n' "$ROOST_SIGNING_KEY" > /tmp/roost-signing.key)
+
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
@@ -37,4 +44,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ROOST_SIGNING_KEY: ${{ secrets.ROOST_SIGNING_KEY }}
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f /tmp/roost-signing.key

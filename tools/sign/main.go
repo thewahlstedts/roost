@@ -3,7 +3,8 @@
 // only got access to the GitHub repo.
 //
 //	go run ./tools/sign -gen KEYFILE        # new key: seed to KEYFILE (0600), public key to stdout
-//	go run ./tools/sign FILE SIGFILE        # sign FILE with $ROOST_SIGNING_KEY into SIGFILE
+//	go run ./tools/sign -key KEYFILE FILE SIGFILE   # sign FILE into SIGFILE
+//	go run ./tools/sign FILE SIGFILE        # same, key from $ROOST_SIGNING_KEY
 //
 // Keys and signatures are base64 (std encoding). The private key is the
 // 32-byte ed25519 seed; roost embeds the public key (update.go: releaseKeys).
@@ -42,12 +43,20 @@ func run(args []string) error {
 		fmt.Println(base64.StdEncoding.EncodeToString(pub))
 		return nil
 	}
-	if len(args) != 2 {
-		return fmt.Errorf("usage: sign -gen KEYFILE | sign FILE SIGFILE")
+	key := os.Getenv("ROOST_SIGNING_KEY")
+	if len(args) == 4 && args[0] == "-key" {
+		b, err := os.ReadFile(args[1])
+		if err != nil {
+			return err
+		}
+		key, args = string(b), args[2:]
 	}
-	seed, err := base64.StdEncoding.DecodeString(strings.TrimSpace(os.Getenv("ROOST_SIGNING_KEY")))
+	if len(args) != 2 {
+		return fmt.Errorf("usage: sign -gen KEYFILE | sign [-key KEYFILE] FILE SIGFILE")
+	}
+	seed, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key))
 	if err != nil || len(seed) != ed25519.SeedSize {
-		return fmt.Errorf("ROOST_SIGNING_KEY must be a base64 ed25519 seed")
+		return fmt.Errorf("signing key must be a base64 ed25519 seed")
 	}
 	msg, err := os.ReadFile(args[0])
 	if err != nil {
