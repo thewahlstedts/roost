@@ -10,9 +10,9 @@
 #   ROOST_FROM_SOURCE=1       skip release binaries, always build with Go
 #   ROOST_NO_SETUP=1          never offer to run `roost setup`
 #
-# Never uses sudo. Never overwrites the binary in place (macOS kills signed
-# binaries whose file is rewritten); it removes the old one and moves the
-# new one in.
+# Works on macOS and Linux. Never uses sudo. Never overwrites the binary in
+# place (macOS kills signed binaries whose file is rewritten); it removes the
+# old one and moves the new one in.
 set -eu
 
 REPO="thewahlstedts/roost"
@@ -44,9 +44,13 @@ ask() { # ask "question" -> 0 for yes
 }
 
 check_platform() {
-	[ "$(uname -s)" = "Darwin" ] || die "roost is macOS-only (found $(uname -s))."
+	case "$(uname -s)" in
+	Darwin) OS=darwin ;;
+	Linux) OS=linux ;;
+	*) die "roost runs on macOS and Linux (found $(uname -s))." ;;
+	esac
 	case "$(uname -m)" in
-	arm64) ARCH=arm64 ;;
+	arm64 | aarch64) ARCH=arm64 ;;
 	x86_64) ARCH=amd64 ;;
 	*) die "unsupported architecture: $(uname -m)" ;;
 	esac
@@ -62,11 +66,13 @@ check_runtime_deps() {
 		if have brew && ask "roost needs: $missing. Install with Homebrew now?"; then
 			# shellcheck disable=SC2086 # word-splitting the list is intended
 			brew install $missing
+		elif [ "$OS" = linux ]; then
+			warn "roost needs $missing at runtime. Install it with your package manager, e.g. sudo apt install $missing"
 		else
 			warn "roost needs $missing at runtime. Install with: brew install $missing"
 		fi
 	fi
-	if [ ! -d "/Applications/iTerm.app" ] && [ ! -d "$HOME/Applications/iTerm.app" ]; then
+	if [ "$OS" = darwin ] && [ ! -d "/Applications/iTerm.app" ] && [ ! -d "$HOME/Applications/iTerm.app" ]; then
 		warn "iTerm not found. roost works without it, but the iTerm profile and tab markers need it (brew install --cask iterm2)."
 	fi
 	have claude || warn "Claude Code ('claude') not found on PATH. See https://docs.claude.com/en/docs/claude-code"
@@ -86,7 +92,7 @@ local_checkout() {
 # Try a prebuilt release binary. Writes $tmp/roost and returns 0, or returns 1
 # so the caller falls back to building from source.
 fetch_release() {
-	asset="roost_darwin_${ARCH}.tar.gz"
+	asset="roost_${OS}_${ARCH}.tar.gz"
 	dl="$tmp/release"
 	mkdir -p "$dl"
 
@@ -110,7 +116,11 @@ fetch_release() {
 
 	want=$(awk -v f="$asset" '$2 == f || $2 == "*" f { print $1 }' "$dl/checksums.txt")
 	[ -n "$want" ] || die "no checksum for $asset in checksums.txt"
-	got=$(shasum -a 256 "$dl/$asset" | awk '{ print $1 }')
+	if have sha256sum; then
+		got=$(sha256sum "$dl/$asset" | awk '{ print $1 }')
+	else
+		got=$(shasum -a 256 "$dl/$asset" | awk '{ print $1 }')
+	fi
 	[ "$want" = "$got" ] || die "checksum mismatch for $asset (want $want, got $got). Not installing."
 	say "Checksum OK ($asset)"
 
@@ -141,7 +151,7 @@ get_source() { # prints the source dir
 }
 
 build_from_source() {
-	have go || die "Go is needed to build roost from source: brew install go"
+	have go || die "Go is needed to build roost from source: https://go.dev/dl (or brew install go)"
 	src=$(get_source)
 	say "Building from $src"
 	(cd "$src" && CGO_ENABLED=0 go build -trimpath -o "$tmp/roost" .) || die "go build failed"
@@ -156,7 +166,7 @@ install_binary() {
 	rm -f "$staged"
 	cp "$tmp/roost" "$staged"
 	chmod 755 "$staged"
-	xattr -d com.apple.quarantine "$staged" 2>/dev/null || true
+	if [ "$OS" = darwin ]; then xattr -d com.apple.quarantine "$staged" 2>/dev/null || true; fi
 	rm -f "$dest"
 	mv "$staged" "$dest"
 	say "Installed $("$dest" version 2>/dev/null || echo roost) to $dest"
@@ -166,17 +176,17 @@ check_path() {
 	case ":$PATH:" in
 	*":$PREFIX:"*) ;;
 	*)
-		warn "$PREFIX is not on your PATH. Add this to ~/.zshrc:"
+		warn "$PREFIX is not on your PATH. Add this to your shell's rc file (~/.zshrc, ~/.bashrc):"
 		printf '    export PATH="%s:$PATH"\n' "$PREFIX" >&2
 		;;
 	esac
 }
 
 offer_setup() {
-	if [ "$NO_SETUP" != "1" ] && ask "Run 'roost setup' now (adds a Claude Code hook and an iTerm profile)?"; then
+	if [ "$NO_SETUP" != "1" ] && ask "Run 'roost setup' now (adds a Claude Code hook, and an iTerm profile on macOS)?"; then
 		"$PREFIX/roost" setup
 	else
-		say "Next: run 'roost setup' (adds a hook to ~/.claude/settings.json and an iTerm profile; undo with 'roost setup --remove')."
+		say "Next: run 'roost setup' (adds a hook to ~/.claude/settings.json, plus an iTerm profile on macOS; undo with 'roost setup --remove')."
 	fi
 }
 

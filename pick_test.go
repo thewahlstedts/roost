@@ -34,3 +34,23 @@ func TestValidSessionID(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitFields(t *testing.T) {
+	for _, line := range []string{"1" + sep + "api" + sep + "/tmp"} {
+		if got := splitFields(line); len(got) != 3 || got[1] != "api" || got[2] != "/tmp" {
+			t.Errorf("splitFields(%q) = %q", line, got)
+		}
+	}
+}
+
+func TestTmuxVersionOK(t *testing.T) {
+	cases := map[string]bool{
+		"tmux 3.8": true, "tmux 3.3a": true, "tmux 3.4": true, "tmux next-3.6": true,
+		"tmux 4.0": true, "tmux 3.10": true, "tmux master": true, "tmux 3.2a": false, "tmux 2.9": false,
+	}
+	for in, want := range cases {
+		if got := tmuxVersionOK(in); got != want {
+			t.Errorf("tmuxVersionOK(%q) = %v, want %v", in, got, want)
+		}
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -74,6 +75,9 @@ func setupITerm(remove bool, shortcut string) error {
 			fmt.Println("Removed the roost iTerm profile.")
 		}
 		return nil
+	}
+	if runtime.GOOS != "darwin" {
+		return nil // iTerm is macOS-only
 	}
 	if _, err := os.Stat("/Applications/iTerm.app"); err != nil {
 		return nil // no iTerm, nothing to do

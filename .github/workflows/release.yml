@@ -1,7 +1,7 @@
 name: Release
 
 # Idle until a v* tag is pushed (e.g. git tag v0.2.0 && git push origin v0.2.0).
-# Builds darwin arm64 + amd64 with GoReleaser and attaches the archives and
+# Builds darwin + linux (arm64, amd64) with GoReleaser and attaches the archives and
 # checksums.txt to a GitHub Release. install.sh picks these up automatically.
 on:
   push:

@@ -25,8 +25,9 @@ that aren't running an AI CLI (see [Tab markers](#tab-markers)).
 
 ## Install
 
-Needs macOS and [Homebrew](https://brew.sh) `tmux` and `jq` (the installer
-offers to install them). Go is only needed when there's no release binary yet.
+Runs on macOS and Linux. Needs `tmux` 3.3 or newer and `jq` (on macOS the
+installer offers to `brew install` them; on Linux use your package manager,
+e.g. `sudo apt install tmux jq`).
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thewahlstedts/roost/master/install.sh | sh
@@ -40,8 +41,8 @@ git clone https://github.com/thewahlstedts/roost.git && cd roost
 ./install.sh      # checks deps, builds, installs to ~/.local/bin/roost
 ```
 
-The installer is safe to re-run (that's also how you upgrade). It offers to
-`brew install` missing tmux/jq, never uses sudo, and replaces the binary rather
+The installer downloads the latest release for your OS and CPU and checks its
+checksum. It's safe to re-run (that's also how you upgrade), never uses sudo, and replaces the binary rather
 than overwriting it. Set `ROOST_PREFIX` to install somewhere else. `make
 install` works too.
 
@@ -52,7 +53,7 @@ dots. It:
 
 - adds one hook command (`roost hook`) to `~/.claude/settings.json`, after
   backing the file up next to it. The hook does nothing outside roost.
-- writes an iTerm profile to
+- on macOS with iTerm, writes an iTerm profile to
   `~/Library/Application Support/iTerm2/DynamicProfiles/roost.json`.
 
 `roost setup --remove` undoes both. To uninstall completely, also delete
@@ -60,7 +61,9 @@ dots. It:
 
 ### Tested with
 
-macOS 27, iTerm 3.7, tmux 3.8, zsh, Claude Code 2.1. roost relies on a few
+macOS 27, iTerm 3.7, tmux 3.8, zsh, Claude Code 2.1. On Linux: Ubuntu 24.04
+(tmux 3.4) and Debian 12 (tmux 3.3a). Ubuntu 22.04 ships tmux 3.2, which is
+too old. roost relies on a few
 undocumented details (how Claude Code stores sessions, iTerm's profile format),
 so other versions may need tweaks. Issues welcome.
 
@@ -125,7 +128,15 @@ Only Claude reports when you quit it (through its hook). For other CLIs roost
 treats a tab that's back at a shell prompt as "CLI exited", so it reopens as a
 plain shell after a restart.
 
-## iTerm
+## Linux
+
+Everything except the iTerm profile works the same in any terminal. Copying a
+mouse selection uses `wl-copy` (Wayland) or `xclip`/`xsel` (X11) if installed,
+otherwise tmux sends it to your terminal's clipboard (OSC 52), which most
+terminals and SSH sessions support. `Ctrl-Space ←/→` switches tabs; to get a
+Cmd/Super-style shortcut, bind your terminal to send `\e[9001~` / `\e[9002~`.
+
+## iTerm (macOS)
 
 `roost setup` adds an iTerm profile named **roost**: your default profile plus
 **Cmd+← / Cmd+→ to switch roost tabs**, a 🐓 icon, and it starts roost when
@@ -224,7 +235,7 @@ scan of the full history on every push and pull request; Dependabot keeps the
 pinned actions and Go modules up to date.
 
 Releases: bump `version` in `main.go`, then push a `v*` tag. The release
-workflow builds macOS binaries (arm64 + amd64) with checksums, and
+workflow builds macOS and Linux binaries (arm64 + amd64) with checksums, and
 `install.sh` uses them automatically so users don't need Go.
 
 `make install` replaces the binary (it never overwrites in place: macOS kills

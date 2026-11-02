@@ -37,7 +37,12 @@ type State struct {
 func statePath() string  { return filepath.Join(homeDir(), "state.json") }
 func historyDir() string { return filepath.Join(homeDir(), "history") }
 
-const sep = "\x1f"
+// sep separates fields in tmux format output. It's printable ASCII on
+// purpose: tmux escapes control characters in format output, differently by
+// version (3.3 prints "_", 3.4 prints "\037"), so 0x1f can't be used.
+const sep = "~|roost|~"
+
+func splitFields(line string) []string { return strings.Split(line, sep) }
 
 // snapshot reads the live layout from the running tmux server.
 func snapshot() (*State, error) {
@@ -54,7 +59,7 @@ func snapshot() (*State, error) {
 	byIdx := map[int]*Window{}
 	var order []int
 	for _, line := range strings.Split(out, "\n") {
-		p := strings.Split(line, sep)
+		p := splitFields(line)
 		if len(p) != 12 {
 			continue
 		}

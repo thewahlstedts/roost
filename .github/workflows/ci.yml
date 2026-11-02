@@ -36,10 +36,11 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: Build (macOS arm64 + amd64)
+      - name: Build (macOS + Linux, arm64 + amd64)
         run: |
-          GOOS=darwin GOARCH=arm64 go build -o /dev/null .
-          GOOS=darwin GOARCH=amd64 go build -o /dev/null .
+          for os in darwin linux; do for arch in arm64 amd64; do
+            GOOS=$os GOARCH=$arch go build -o /dev/null .
+          done; done
 
       - name: Test
         run: go test ./...
