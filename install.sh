@@ -90,27 +90,19 @@ local_checkout() {
 }
 
 # Try a prebuilt release binary. Writes $tmp/roost and returns 0, or returns 1
-# so the caller falls back to building from source.
+# (after saying why) so the caller falls back to building from source.
+# Plain HTTPS first (the repo is public); gh as a backup.
 fetch_release() {
 	asset="roost_${OS}_${ARCH}.tar.gz"
 	dl="$tmp/release"
 	mkdir -p "$dl"
+	errlog="$tmp/download.err"
 
-	if have gh && gh auth status >/dev/null 2>&1; then
-		tag_arg=""
-		[ "$VERSION" = "latest" ] || tag_arg="$VERSION"
-		# shellcheck disable=SC2086 # empty tag_arg means "latest"
-		gh release download $tag_arg --repo "$REPO" --dir "$dl" \
-			--pattern "$asset" --pattern checksums.txt >/dev/null 2>&1 || return 1
-	elif have curl; then
-		if [ "$VERSION" = "latest" ]; then
-			base="https://github.com/$REPO/releases/latest/download"
-		else
-			base="https://github.com/$REPO/releases/download/$VERSION"
-		fi
-		curl -fsSL -o "$dl/$asset" "$base/$asset" 2>/dev/null || return 1
-		curl -fsSL -o "$dl/checksums.txt" "$base/checksums.txt" 2>/dev/null || return 1
+	if download_curl || download_gh; then
+		:
 	else
+		warn "Couldn't download a release binary for ${OS}/${ARCH}:"
+		sed 's/^/    /' "$errlog" >&2
 		return 1
 	fi
 
@@ -127,6 +119,33 @@ fetch_release() {
 	tar -xzf "$dl/$asset" -C "$dl" roost || die "could not extract roost from $asset"
 	mv "$dl/roost" "$tmp/roost"
 	return 0
+}
+
+download_curl() {
+	have curl || { echo "curl: not installed" >>"$errlog"; return 1; }
+	if [ "$VERSION" = "latest" ]; then
+		base="https://github.com/$REPO/releases/latest/download"
+	else
+		base="https://github.com/$REPO/releases/download/$VERSION"
+	fi
+	for f in "$asset" checksums.txt; do
+		if ! curl -fsSL --retry 2 -o "$dl/$f" "$base/$f" 2>>"$errlog"; then
+			echo "curl: could not fetch $base/$f" >>"$errlog"
+			return 1
+		fi
+	done
+}
+
+download_gh() {
+	have gh || return 1
+	gh auth status >/dev/null 2>&1 || { echo "gh: not logged in" >>"$errlog"; return 1; }
+	tag="$VERSION"
+	if [ "$tag" = "latest" ]; then # older gh can't download "latest" without a tag
+		tag=$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>>"$errlog") || return 1
+	fi
+	rm -f "$dl/$asset" "$dl/checksums.txt"
+	gh release download "$tag" --repo "$REPO" --dir "$dl" \
+		--pattern "$asset" --pattern checksums.txt 2>>"$errlog" >/dev/null
 }
 
 get_source() { # prints the source dir
@@ -173,6 +192,10 @@ install_binary() {
 }
 
 check_path() {
+	found=$(command -v roost 2>/dev/null || true)
+	if [ -n "$found" ] && [ "$found" != "$PREFIX/roost" ]; then
+		warn "'roost' on your PATH is $found ($("$found" version 2>/dev/null || echo "unknown version")), not the one just installed at $PREFIX/roost. Remove the other copy or put $PREFIX first on your PATH."
+	fi
 	case ":$PATH:" in
 	*":$PREFIX:"*) ;;
 	*)
@@ -200,7 +223,8 @@ main() {
 	if [ "$FROM_SOURCE" != "1" ] && ! local_checkout >/dev/null && fetch_release; then
 		:
 	else
-		[ "$FROM_SOURCE" = "1" ] || local_checkout >/dev/null || say "No release binary available; building from source."
+		[ "$FROM_SOURCE" = "1" ] || local_checkout >/dev/null ||
+			warn "Building from source instead. Source builds report version 'dev' and don't auto-update; re-run this installer once the download works to get the release."
 		build_from_source
 	fi
 
