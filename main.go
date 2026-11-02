@@ -28,7 +28,8 @@ const usage = `roost — keep your Claude tabs alive, even across restarts.
   roost restore         rebuild tabs from the last save
       --list              show older saves;  roost restore 3  uses one
   roost kill            save, then close everything
-  roost setup           install the Claude hook (run once)
+  roost setup           choose your CLI, install the Claude hook (run once)
+      --agent NAME        set the default CLI without asking
       --remove            uninstall it
       --shortcut X        Ctrl+Cmd+X opens roost in iTerm (default R; 'none')
   roost keys            show keyboard shortcuts
@@ -69,7 +70,16 @@ func main() {
 	case "kill", "stop":
 		err = cmdKill()
 	case "setup":
-		err = setup(hasFlag(args, "--remove"))
+		remove := hasFlag(args, "--remove")
+		agent := ""
+		if !remove {
+			agent, err = setupAgent(flagValue(args, "--agent"))
+		}
+		if err == nil && (remove || wantsClaudeHook(agent)) {
+			err = setup(remove)
+		} else if err == nil {
+			fmt.Println("Skipping the Claude Code hook (Claude Code isn't installed).")
+		}
 		if err == nil {
 			err = setupITerm(hasFlag(args, "--remove"), flagValue(args, "--shortcut"))
 		}
@@ -148,10 +158,12 @@ func cmdOpen(native bool) error {
 		if _, err := newTab(cwd, "", ""); err != nil {
 			return err
 		}
-		notice = "roost: welcome! Click '+ new' or press Ctrl-Space n for a Claude tab"
+		notice = "roost: welcome! Click '+ new' or press Ctrl-Space n for a new tab"
 	}
-	if !hooksInstalled() {
-		notice = "roost: run 'roost setup' once so Claude sessions can be resumed after a restart"
+	if _, err := os.Stat(settingsConfPath()); err != nil {
+		notice = "roost: run 'roost setup' once to choose your CLI and set up restore"
+	} else if defaultAgent() == "claude" && !hooksInstalled() {
+		notice = "roost: run 'roost setup' so Claude sessions can be resumed after a restart"
 	}
 	if notice != "" {
 		tmux("run-shell", "-b", "sleep 0.8; tmux -L "+shellQuote(socketName)+" display-message -d 6000 "+shellQuote(notice))

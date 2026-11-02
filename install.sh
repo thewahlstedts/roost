@@ -184,10 +184,10 @@ check_path() {
 }
 
 offer_setup() {
-	if [ "$NO_SETUP" != "1" ] && ask "Run 'roost setup' now (adds a Claude Code hook, and an iTerm profile on macOS)?"; then
+	if [ "$NO_SETUP" != "1" ] && ask "Run 'roost setup' now (choose your CLI; adds a Claude Code hook, and an iTerm profile on macOS)?"; then
 		"$PREFIX/roost" setup
 	else
-		say "Next: run 'roost setup' (adds a hook to ~/.claude/settings.json, plus an iTerm profile on macOS; undo with 'roost setup --remove')."
+		say "Next: run 'roost setup' (asks which CLI you use; adds a hook to ~/.claude/settings.json, plus an iTerm profile on macOS; undo with 'roost setup --remove')."
 	fi
 }
 
