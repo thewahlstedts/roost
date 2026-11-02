@@ -31,7 +31,7 @@ e.g. `sudo apt install tmux jq`).
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thewahlstedts/roost/master/install.sh | sh
-roost setup       # Claude hook + iTerm profile (see "What setup changes")
+roost setup       # asks which CLI you use; Claude hook + iTerm profile
 ```
 
 Or from a clone:
@@ -48,11 +48,14 @@ install` works too.
 
 ### What setup changes
 
-`roost setup` is optional but needed for exact Claude resume and the status
-dots. It:
+`roost setup` asks which AI CLI you use (it suggests the first one it finds
+installed) and makes that the default for new tabs. Re-running it doesn't ask
+again; change it with `roost setup --agent NAME`. It also:
 
-- adds one hook command (`roost hook`) to `~/.claude/settings.json`, after
-  backing the file up next to it. The hook does nothing outside roost.
+- saves your choice in `~/.roost/settings.conf`.
+- if Claude Code is installed, adds one hook command (`roost hook`) to
+  `~/.claude/settings.json`, after backing the file up next to it. It's needed
+  for exact Claude resume and the status dots, and does nothing outside roost.
 - on macOS with iTerm, writes an iTerm profile to
   `~/Library/Application Support/iTerm2/DynamicProfiles/roost.json`.
 
@@ -104,7 +107,9 @@ Other keys are `Ctrl-Space`, let go, then:
 
 ## Other CLIs
 
-Pick the CLI for new tabs in `~/.roost/custom.conf`:
+`roost setup` asks which CLI new tabs run; change it any time with
+`roost setup --agent pi`. Or set it, and which CLIs the picker offers, in
+`~/.roost/custom.conf` (which wins over setup's choice):
 
 ```
 set -g @roost_default_agent pi        # claude (default) | pi | codex | devin | grok | your own

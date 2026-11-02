@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestAgentCommands(t *testing.T) {
 	id := "a87ff3d8-7d4f-4eb4-b1b9-e7ad7df2fad9"
@@ -56,5 +59,28 @@ func TestAgentNames(t *testing.T) {
 		if validAgentName(bad) {
 			t.Errorf("%q should be invalid", bad)
 		}
+	}
+}
+
+func TestConfiguredAgent(t *testing.T) {
+	dir := t.TempDir()
+	cases := map[string]string{
+		"set -g @roost_default_agent pi\n":                                    "pi",
+		"set-option -g @roost_default_agent \"codex\"\n":                      "codex",
+		"# set -g @roost_default_agent grok\n":                                "",
+		"set -g @roost_default_agent pi\nset -g @roost_default_agent devin\n": "devin", // last wins, like tmux
+		"set -g @roost_accent red\n":                                          "",
+	}
+	for body, want := range cases {
+		p := dir + "/c.conf"
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := configuredAgent(p); got != want {
+			t.Errorf("configuredAgent(%q) = %q, want %q", body, got, want)
+		}
+	}
+	if got := configuredAgent(dir + "/missing.conf"); got != "" {
+		t.Errorf("missing file = %q", got)
 	}
 }

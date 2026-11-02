@@ -101,6 +101,7 @@ func writeConf() error {
 	os.Chmod(historyDir(), 0o700)
 	bin := shellQuote(selfPath())
 	conf := strings.ReplaceAll(confTemplate, "@BIN@", bin)
+	conf = strings.ReplaceAll(conf, "@SETTINGS@", settingsConfPath())
 	conf = strings.ReplaceAll(conf, "@CUSTOM@", filepath.Join(homeDir(), "custom.conf"))
 	conf = strings.ReplaceAll(conf, "@COPY@", copyAction())
 	return os.WriteFile(confPath(), []byte(conf), 0o600)
@@ -325,6 +326,7 @@ set-hook -g session-window-changed "if -F '#{==:#{@roost_state},done}' 'set -w @
 set-hook -g window-renamed "run -b '@BIN@ save --quiet'"
 set-hook -g after-new-window "run -b '@BIN@ save --quiet'"
 
+source-file -q @SETTINGS@
 source-file -q @CUSTOM@
 `
 
