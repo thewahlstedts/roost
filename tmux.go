@@ -101,6 +101,7 @@ func writeConf() error {
 	os.Chmod(historyDir(), 0o700)
 	bin := shellQuote(selfPath())
 	conf := strings.ReplaceAll(confTemplate, "@BIN@", bin)
+	conf = strings.ReplaceAll(conf, "@VERSION@", versionLabel())
 	conf = strings.ReplaceAll(conf, "@SETTINGS@", settingsConfPath())
 	conf = strings.ReplaceAll(conf, "@CUSTOM@", filepath.Join(homeDir(), "custom.conf"))
 	conf = strings.ReplaceAll(conf, "@COPY@", copyAction())
@@ -135,6 +136,15 @@ func tmuxVersionOK(v string) bool {
 	major, _ := strconv.Atoi(m[1])
 	minor, _ := strconv.Atoi(m[2])
 	return major > minTmuxMajor || (major == minTmuxMajor && minor >= minTmuxMinor)
+}
+
+// versionLabel is what the status bar shows next to "roost": "v0.3.1", or
+// "dev" for local builds.
+func versionLabel() string {
+	if _, ok := parseVersion(version); ok {
+		return "v" + strings.TrimPrefix(version, "v")
+	}
+	return "dev"
 }
 
 // copyAction is the copy-mode action for a mouse selection: pipe it to the
@@ -304,8 +314,10 @@ set -g pane-border-style "fg=#{@roost_split_color}"
 set -g pane-active-border-style "fg=#{@roost_accent}"
 set -g pane-border-format "#{?pane_active,#[fg=#{@roost_accent} bold],#[fg=#{@roost_split_color}]} #{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}#{?#{@roost_agent}, · #{@roost_agent},} "
 set-hook -g window-layout-changed "if -F '#{&&:#{>:#{window_panes},1},#{!=:#{@roost_split_labels},off}}' 'set -w pane-border-status top' 'set -w pane-border-status off'"
-set -g status-left-length 16
-set -g status-left "#[fg=#{@roost_accent},bold] 🐓 roost #[default]"
+set -g @roost_version "@VERSION@"
+set -g @roost_version_color colour242
+set -g status-left-length 32
+set -g status-left "#[fg=#{@roost_accent},bold] 🐓 roost #[nobold,fg=#{@roost_version_color}]#{@roost_version} #[default]"
 # Tab markers: which tabs run Claude (a pane with @roost_session) and which don't.
 # Override in custom.conf. @roost_marker: shell (default) | claude | both | none
 set -g @roost_marker shell
