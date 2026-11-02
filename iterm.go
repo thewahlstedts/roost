@@ -17,6 +17,8 @@ import (
 const (
 	seqPrevTab = "[9001~"
 	seqNextTab = "[9002~"
+	seqMoveL   = "[9003~"
+	seqMoveR   = "[9004~"
 )
 
 //go:embed assets/roost.png
@@ -89,6 +91,9 @@ func setupITerm(remove bool, shortcut string) error {
 	// keycode-modifiers: 0xf702/0xf703 = arrow, 0x300000 = Cmd (+arrow flag).
 	keymap["0xf702-0x300000-0x7b-0x1"] = key(seqPrevTab)
 	keymap["0xf703-0x300000-0x7c-0x1"] = key(seqNextTab)
+	// 0x320000 = Cmd+Shift (+arrow flag): move the current tab.
+	keymap["0xf702-0x320000-0x7b-0x1"] = key(seqMoveL)
+	keymap["0xf703-0x320000-0x7c-0x1"] = key(seqMoveR)
 
 	profile := map[string]any{
 		"Name":         "roost",
@@ -133,7 +138,7 @@ func setupITerm(remove bool, shortcut string) error {
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		return err
 	}
-	fmt.Println("Added an iTerm profile named \"roost\" (Cmd+←/→ switches roost tabs).")
+	fmt.Println("Added an iTerm profile named \"roost\" (Cmd+←/→ switches roost tabs, Cmd+Shift+←/→ moves them).")
 	if sc, ok := profile["Shortcut"].(string); ok && sc != "" {
 		fmt.Printf("  Ctrl+Cmd+%s opens a roost window (change with: roost setup --shortcut X | none).\n", sc)
 	}

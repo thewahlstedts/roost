@@ -15,6 +15,7 @@ func TestAgentCommands(t *testing.T) {
 		{"claude", "claude --session-id " + id, "claude --resume " + id, true},
 		{"pi", "pi --session-id " + id, "pi --session-id " + id, true},
 		{"codex", "codex", "codex resume --last", false},
+		{"devin", "devin", "devin -c", false},
 		{"grok", "grok", "", false}, // no resume: roost starts it fresh
 	}
 	for _, c := range cases {

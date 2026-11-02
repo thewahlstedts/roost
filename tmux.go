@@ -207,9 +207,12 @@ bind r   command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\""
 bind x   confirm-before -p "Close tab '#W'? (y/n)" kill-window
 bind d   detach-client
 bind s   run -b "@BIN@ save" \; display-message "roost: saved"
-bind ?   display-popup -E -w 70 -h 23 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait"
+bind ?   display-popup -E -w 70 -h 27 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait"
 bind Left  previous-window
 bind Right next-window
+# Move the current tab left/right (stays selected; stops at the ends).
+bind <   if -F "#{window_start_flag}" "" "swap-window -d -t :-1"
+bind >   if -F "#{window_end_flag}" "" "swap-window -d -t :+1"
 bind |   split-window -h -c "#{pane_current_path}"
 bind -   split-window -v -c "#{pane_current_path}"
 bind o   select-pane -t :.+
@@ -228,12 +231,19 @@ bind 9 select-window -t :=9
 # Cmd+Left / Cmd+Right: the "roost" iTerm profile sends these codes.
 set -s user-keys[0] "\e[9001~"
 set -s user-keys[1] "\e[9002~"
+set -s user-keys[2] "\e[9003~"
+set -s user-keys[3] "\e[9004~"
 bind -n User0 previous-window
 bind -n User1 next-window
+# Cmd+Shift+Left / Cmd+Shift+Right: move the current tab.
+bind -n User2 if -F "#{window_start_flag}" "" "swap-window -d -t :-1"
+bind -n User3 if -F "#{window_end_flag}" "" "swap-window -d -t :+1"
 
 # No-prefix shortcuts (need iTerm: Profiles > Keys > Left Option key = Esc+)
 bind -n M-Left  previous-window
 bind -n M-Right next-window
+bind -n M-S-Left  if -F "#{window_start_flag}" "" "swap-window -d -t :-1"
+bind -n M-S-Right if -F "#{window_end_flag}" "" "swap-window -d -t :+1"
 bind -n M-n display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick"
 bind -n M-1 select-window -t :=1
 bind -n M-2 select-window -t :=2
@@ -246,7 +256,19 @@ bind -n M-8 select-window -t :=8
 bind -n M-9 select-window -t :=9
 
 # ---- mouse ----
-bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 70 -h 23 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
+bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 70 -h 27 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
+# Drag a tab along the bar to move it (it swaps past each tab it crosses).
+bind -n MouseDrag1Status swap-window -d -t =
+# Right-click a tab: a small menu (it also selects the tab, so every item
+# acts on the tab you clicked).
+bind -n MouseDown3Status select-window -t = \; display-menu -x W -y W -T "#[align=centre] #W " \
+  "#{?window_start_flag,-,}Move left"   "<" { swap-window -d -t :-1 } \
+  "#{?window_end_flag,-,}Move right"    ">" { swap-window -d -t :+1 } \
+  "#{?window_start_flag,-,}Move to start" "^" { move-window -b -t :^ } \
+  "#{?window_end_flag,-,}Move to end"   "$" { move-window -a -t :$ } \
+  "" \
+  "Rename"  r { command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\"" } \
+  "Close"   x { confirm-before -p "Close tab '#W'? (y/n)" kill-window }
 bind -n DoubleClick1Status command-prompt -I "#W" -p "Rename tab:" "rename-window -t = -- \"%%%\""
 bind -T copy-mode MouseDragEnd1Pane send -X @COPY@
 bind -T copy-mode-vi MouseDragEnd1Pane send -X @COPY@
