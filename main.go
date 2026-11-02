@@ -20,7 +20,7 @@ const usage = `roost — keep your Claude tabs alive, even across restarts.
 
   roost                 open roost (restores your tabs after a restart)
   roost new [dir]       new tab running your CLI (default: claude) in dir
-      --agent NAME        use another CLI: pi, codex, grok, or one you define
+      --agent NAME        use another CLI: pi, codex, devin, grok, or your own
       --shell             plain shell tab instead
       --name NAME         fixed tab name (default: follows the folder)
   roost ls              list tabs (running, or last saved)
@@ -370,6 +370,11 @@ const keysHelp = `
     Cmd-← / Cmd-→ ............. previous / next tab
     click a tab ............... go to it
 
+  Move tabs
+    Cmd-Shift-← / → ........... move this tab left / right
+    drag a tab ................ move it along the bar
+    right-click a tab ......... move / rename / close menu
+
   New tab
     click "+ new" ............. new tab (pick a folder; Tab = CLI)
     Ctrl-Space, then n ........ new tab running your CLI
@@ -380,6 +385,7 @@ const keysHelp = `
     1-9  go to tab      r  rename tab      x  close tab
     |    split right    -  split down      z  zoom split
     d    detach         s  save now        ?  this help
+    <    move left      >  move right
 
   Mouse: double-click a tab to rename · scroll · drag to copy
   Tabs marked $ aren't running Claude (README: Tab markers)

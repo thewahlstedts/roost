@@ -30,6 +30,9 @@ var builtinAgents = []Agent{
 	{Name: "claude", Cmd: "claude", Start: "--session-id {id}", Resume: "--resume {id}"},
 	{Name: "pi", Cmd: "pi", Start: "--session-id {id}", Resume: "--session-id {id}"},
 	{Name: "codex", Cmd: "codex", Start: "", Resume: "resume --last"},
+	// Devin can't be given a session id up front; -c resumes the most recent
+	// session in the current folder, which is the tab's folder on restore.
+	{Name: "devin", Cmd: "devin", Start: "", Resume: "-c"},
 	{Name: "grok", Cmd: "grok", Start: "", Resume: ""},
 }
 

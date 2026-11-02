@@ -1,7 +1,7 @@
 # roost
 
 A simple home for your AI coding CLI tabs that **comes back after a restart**.
-Built for Claude Code; also runs pi, Codex, Grok, or any CLI you configure.
+Built for Claude Code; also runs pi, Codex, Devin, Grok, or any CLI you configure.
 
 Open a few tabs in different projects, restart your Mac, type `roost`, and
 every tab reopens in the right folder, back in the conversation it had before
@@ -21,7 +21,7 @@ Colours are configurable, see [Theme colours](#theme-colours). A `$` marks tabs
 that aren't running an AI CLI (see [Tab markers](#tab-markers)).
 
 > roost is an unofficial community tool. It isn't made by or affiliated with
-> Anthropic, OpenAI, xAI or the pi authors.
+> Anthropic, OpenAI, Cognition, xAI or the pi authors.
 
 ## Install
 
@@ -83,6 +83,10 @@ new tab (recent Claude projects first; type to filter; **Tab** switches which
 CLI it opens), double-click a tab to rename it. Click **? help** for a cheat
 sheet. While it's open, `n` and `t` open tabs directly.
 
+**Move tabs** by dragging them along the bar, with **Cmd+Shift+← / →** (iTerm
+profile), or by right-clicking a tab for a menu (move left/right, to start/end,
+rename, close). The order is kept across restarts.
+
 Tabs are named after the folder they're in (for Claude tabs, the folder Claude
 is working in) and update as you move around. Rename a tab and your name sticks,
 including across restarts.
@@ -96,13 +100,14 @@ Other keys are `Ctrl-Space`, let go, then:
 | `r` | rename | `x` | close tab |
 | `\|` `-` | split | `d` | detach |
 | `?` | help | `s` | save now |
+| `<` `>` | move tab left / right | | |
 
 ## Other CLIs
 
 Pick the CLI for new tabs in `~/.roost/custom.conf`:
 
 ```
-set -g @roost_default_agent pi        # claude (default) | pi | codex | grok | your own
+set -g @roost_default_agent pi        # claude (default) | pi | codex | devin | grok | your own
 set -g @roost_agents "claude pi"      # what Tab cycles through in the picker
                                       # (default: claude + installed presets)
 ```
@@ -112,6 +117,7 @@ set -g @roost_agents "claude pi"      # what Tab cycles through in the picker
 | `claude` | `claude --session-id <id>` | exact conversation (`--resume <id>`) | yes (hook) |
 | `pi` | `pi --session-id <id>` | exact conversation | no |
 | `codex` | `codex` | most recent session (`codex resume --last`) | no |
+| `devin` | `devin` | most recent session in the tab's folder (`devin -c`) | no |
 | `grok` | `grok` | starts fresh | no |
 
 Change a preset or add any CLI. `{id}` is a UUID roost generates per tab, so
@@ -133,13 +139,14 @@ plain shell after a restart.
 Everything except the iTerm profile works the same in any terminal. Copying a
 mouse selection uses `wl-copy` (Wayland) or `xclip`/`xsel` (X11) if installed,
 otherwise tmux sends it to your terminal's clipboard (OSC 52), which most
-terminals and SSH sessions support. `Ctrl-Space ←/→` switches tabs; to get a
-Cmd/Super-style shortcut, bind your terminal to send `\e[9001~` / `\e[9002~`.
+terminals and SSH sessions support. `Ctrl-Space ←/→` switches tabs and
+`Ctrl-Space <`/`>` moves them; for one-key shortcuts, bind your terminal to
+send `\e[9001~` / `\e[9002~` (switch) and `\e[9003~` / `\e[9004~` (move).
 
 ## iTerm (macOS)
 
 `roost setup` adds an iTerm profile named **roost**: your default profile plus
-**Cmd+← / Cmd+→ to switch roost tabs**, a 🐓 icon, and it starts roost when
+**Cmd+← / Cmd+→ to switch roost tabs** and **Cmd+Shift+← / → to move them**, a 🐓 icon, and it starts roost when
 opened. Open it with **Ctrl+Cmd+R** (change with `roost setup --shortcut K`, or
 `--shortcut none`) or the *Profiles* menu. Your other profiles are untouched.
 
@@ -153,7 +160,8 @@ opened. Open it with **Ctrl+Cmd+R** (change with `roost setup --shortcut K`, or
   `defaults write com.googlecode.iterm2 NoSyncTurnOffMouseReportingOnHostChange -bool false`
 
 If you set iTerm → Profiles → Keys → *Left Option key* to **Esc+**, you also
-get `Opt-1..9`, `Opt-←/→`, and `Opt-n` with no prefix.
+get `Opt-1..9`, `Opt-←/→`, `Opt-Shift-←/→` (move tab), and `Opt-n` with no
+prefix.
 
 Prefer iTerm's own tabs? `roost --native` uses iTerm's tmux integration.
 
