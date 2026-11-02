@@ -14,7 +14,9 @@ import (
 	"golang.org/x/term"
 )
 
-const version = "0.2.0"
+// version is stamped by the release build (-ldflags -X main.version=…).
+// Anything else is a dev build, which never auto-updates.
+var version = "dev"
 
 const usage = `roost — keep your Claude tabs alive, even across restarts.
 
@@ -33,6 +35,8 @@ const usage = `roost — keep your Claude tabs alive, even across restarts.
       --remove            uninstall it
       --shortcut X        Ctrl+Cmd+X opens roost in iTerm (default R; 'none')
   roost keys            show keyboard shortcuts
+  roost update          install the latest release (roost checks daily)
+      --check             only say whether there's a newer one
 
   Add --native to 'roost' to use iTerm's native tabs (tmux -CC).
 `
@@ -98,6 +102,8 @@ func main() {
 		if hasFlag(args, "--wait") {
 			err = helpMenu()
 		}
+	case "update":
+		err = cmdUpdate(args)
 	case "version", "--version":
 		fmt.Println("roost", version)
 	case "help", "-h", "--help":
@@ -168,6 +174,7 @@ func cmdOpen(native bool) error {
 	if notice != "" {
 		tmux("run-shell", "-b", "sleep 0.8; tmux -L "+shellQuote(socketName)+" display-message -d 6000 "+shellQuote(notice))
 	}
+	maybeAutoUpdate()
 	return attach(native)
 }
 

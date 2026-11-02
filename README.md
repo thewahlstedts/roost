@@ -46,6 +46,27 @@ checksum. It's safe to re-run (that's also how you upgrade), never uses sudo, an
 than overwriting it. Set `ROOST_PREFIX` to install somewhere else. `make
 install` works too.
 
+### Updates
+
+roost keeps itself up to date. When you open it, it checks GitHub at most
+once a day in the background and installs a newer release, then tells you in
+the status bar. Your tabs keep running; open roost again to load everything
+new. `roost update` updates right away, and `roost update --check` only says
+whether there's a newer version.
+
+```
+set -g @roost_auto_update on       # on (default) | notify (just tell me) | off
+```
+
+Every release's `checksums.txt` is signed with roost's own ed25519 key, and
+the public key is built into roost. An update is only installed if that
+signature checks out, the download matches its checksum, and the new binary
+runs and reports the expected version. So someone who got into the GitHub
+repo still couldn't push an update to you. Builds you made yourself (`make
+install`, `go build`) report version `dev` and never auto-update; `roost
+update --force` replaces one with the latest release. `ROOST_NO_UPDATE=1`
+turns the check off for a shell.
+
 ### What setup changes
 
 `roost setup` asks which AI CLI you use (it suggests the first one it finds
@@ -247,9 +268,12 @@ CI (GitHub Actions) runs the same checks, the tests, and a TruffleHog secret
 scan of the full history on every push and pull request; Dependabot keeps the
 pinned actions and Go modules up to date.
 
-Releases: bump `version` in `main.go`, then push a `v*` tag. The release
-workflow builds macOS and Linux binaries (arm64 + amd64) with checksums, and
-`install.sh` uses them automatically so users don't need Go.
+Releases: push a `v*` tag (e.g. `git tag -s v0.3.0 && git push origin
+v0.3.0`). The version comes from the tag. The release workflow waits for a
+maintainer to approve the `release` environment (which holds the signing key),
+then builds macOS and Linux binaries (arm64 + amd64), signs `checksums.txt`
+with `tools/sign`, and publishes them. `install.sh` and `roost update` use
+them automatically.
 
 `make install` replaces the binary (it never overwrites in place: macOS kills
 signed binaries that are overwritten while cached). `ROOST_SOCKET` and
