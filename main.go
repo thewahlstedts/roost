@@ -35,6 +35,8 @@ const usage = `roost — keep your AI coding CLI tabs alive, even across restart
       --remove            uninstall it
       --shortcut X        Ctrl+Cmd+X opens roost in iTerm (default R; 'none')
   roost keys            show keyboard shortcuts
+  roost check           run this project's check (tests/lint) now
+      --allow | --deny    approve or revoke it running automatically
   roost update          install the latest release (roost checks daily)
       --check             only say whether there's a newer one
 
@@ -102,6 +104,8 @@ func main() {
 		if hasFlag(args, "--wait") {
 			err = helpMenu()
 		}
+	case "check":
+		err = cmdCheck(args)
 	case "tab-drop": // internal: drag-and-drop of a tab on the status bar
 		err = cmdTabDrop(args)
 	case "update":
@@ -406,6 +410,7 @@ const keysHelp = `
     1-9  go to tab      r  rename tab      x  close tab
     |    split right    -  split down      z  zoom split
     d    detach         s  save now        ?  this help
+    c    check output (✓ passed  ✗ failed  ◌ running  ? approve)
     <    move left      >  move right
 
   Mouse: double-click a tab to rename · scroll · drag to copy
