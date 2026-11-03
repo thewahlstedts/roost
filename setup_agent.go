@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -40,15 +39,12 @@ func configuredAgent(path string) string {
 	return ""
 }
 
-func installed(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
-}
+func installed(cmd string) bool { return onPath(cmd) }
 
 // suggestedAgent is the first installed preset (claude first), else claude.
 func suggestedAgent() string {
 	for _, a := range builtinAgents {
-		if installed(a.Cmd) {
+		if !a.Editor && installed(a.Cmd) {
 			return a.Name
 		}
 	}
@@ -101,8 +97,14 @@ func setupAgent(flag string) (string, error) {
 func askAgent(suggest string) string {
 	fmt.Println("Which AI coding CLI do you use? New tabs will run it.")
 	fmt.Println("(You can still pick another per tab: press Tab in the '+ new' folder picker.)")
+	var opts []Agent // AI CLIs only; editors aren't a "default CLI"
+	for _, a := range builtinAgents {
+		if !a.Editor {
+			opts = append(opts, a)
+		}
+	}
 	def := 1
-	for i, a := range builtinAgents {
+	for i, a := range opts {
 		mark := ""
 		if installed(a.Cmd) {
 			mark = "  ✓ installed"
@@ -110,7 +112,7 @@ func askAgent(suggest string) string {
 		if a.Name == suggest {
 			def = i + 1
 		}
-		fmt.Printf("  %d) %-7s %-13s%s\n", i+1, a.Name, agentLabels[a.Name], mark)
+		fmt.Printf("  %d) %-8s %-25s%s\n", i+1, a.Name, agentLabels[a.Name], mark)
 	}
 	fmt.Println("  or type the name of another CLI you've defined in custom.conf")
 	in := bufio.NewReader(os.Stdin)
@@ -119,16 +121,16 @@ func askAgent(suggest string) string {
 		line, err := in.ReadString('\n')
 		line = strings.TrimSpace(strings.ToLower(line))
 		if line == "" {
-			return builtinAgents[def-1].Name
+			return opts[def-1].Name
 		}
-		if n, err := strconv.Atoi(line); err == nil && n >= 1 && n <= len(builtinAgents) {
-			return builtinAgents[n-1].Name
+		if n, err := strconv.Atoi(line); err == nil && n >= 1 && n <= len(opts) {
+			return opts[n-1].Name
 		}
 		if validAgentName(line) {
 			return line
 		}
 		if err != nil { // input closed mid-answer: don't loop forever
-			return builtinAgents[def-1].Name
+			return opts[def-1].Name
 		}
 		fmt.Println("  Enter a number from the list or a CLI name.")
 	}

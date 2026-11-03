@@ -103,9 +103,20 @@ roost kill                  # save + close everything
 ```
 
 Inside roost, use the mouse: click tabs, click **+ new** to pick a folder for a
-new tab (recent Claude projects first; type to filter; **Tab** switches which
-CLI it opens), double-click a tab to rename it. Click **? help** for a cheat
-sheet. While it's open, `n` and `t` open tabs directly.
+new tab, double-click a tab to rename it. Click **? help** for a cheat sheet.
+While it's open, `n` and `t` open tabs directly.
+
+The **+ new** picker lists the current folder, then folders you've used
+recently (with any CLI, newest first), then every git repo under your source
+folders. Each row shows what's been used there (`claude · factory`, `shell`…).
+Type to filter, or type a path. **Tab** switches what the tab opens with: your
+CLIs, editors such as `fresh`, or **shell** for a plain tab in that folder.
+
+```
+set -g @roost_source_dirs "~/Source ~/work"   # where to look for repos
+# default: whichever of ~/Source ~/src ~/code ~/Projects ~/dev ~/Developer
+#          ~/workspace ~/repos ~/git ~/go/src exist
+```
 
 **Move tabs** by dragging one and dropping it where you want it (on another
 tab, past the last tab, or on the 🐓 label for first), with **Cmd+Shift+← / →** (iTerm
@@ -136,7 +147,8 @@ Other keys are `Ctrl-Space`, let go, then:
 ```
 set -g @roost_default_agent pi        # claude (default) | pi | codex | devin | grok | your own
 set -g @roost_agents "claude pi"      # what Tab cycles through in the picker
-                                      # (default: claude + installed presets)
+                                      # (default: your default + installed or
+                                      #  previously used presets; shell is always last)
 ```
 
 | CLI | New tab | After a restart | Status dots |
@@ -147,9 +159,11 @@ set -g @roost_agents "claude pi"      # what Tab cycles through in the picker
 | `devin` | `devin` | most recent session in the tab's folder (`devin -c`) | no |
 | `grok` | `grok` | starts fresh | no |
 | `factory` | `factory` | runs `factory` again, which continues the run or planning | no |
+| `fresh` (editor) | `fresh .` | reopens `fresh .` in the folder | no |
 
-Presets you have installed show up automatically: in `roost setup`'s list and
-when you press **Tab** in the **+ new** picker. `factory` is an agent pipeline
+Presets you have installed (including in `~/.cargo/bin`, `~/go/bin`,
+`~/.local/bin`…) or have used before show up automatically: in `roost setup`'s
+list (AI CLIs only) and when you press **Tab** in the **+ new** picker. `factory` is an agent pipeline
 (plan → develop → test → review → merge) rather than a chat; run one per repo,
 since it keeps its state in the repo's `.factory/` folder. roost's hook
 ignores the non-interactive `claude -p` runs such pipelines make.

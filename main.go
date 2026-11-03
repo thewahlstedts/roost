@@ -291,6 +291,7 @@ func newTab(dir, name, agent string) (string, error) {
 		markAgent(pane, ag.Name)
 		tmux("send-keys", "-t", pane, ag.StartCmd(id), "Enter")
 	}
+	recordRecent(dir, agent)
 	save()
 	return pane, nil
 }
