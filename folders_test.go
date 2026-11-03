@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -104,5 +105,66 @@ func TestScanUnlimitedAndCache(t *testing.T) {
 	}
 	if fi, _ := os.Stat(repoCachePath()); fi.Mode().Perm() != 0o600 {
 		t.Errorf("repos.json mode %v", fi.Mode().Perm())
+	}
+}
+
+// caseVariant returns dir with its last element upper-cased if the file system
+// treats that as the same folder (macOS default), else skips the test.
+func caseVariant(t *testing.T, dir string) string {
+	t.Helper()
+	v := filepath.Join(filepath.Dir(dir), strings.ToUpper(filepath.Base(dir)))
+	if v == dir {
+		t.Fatalf("%s has no lower-case letters", dir)
+	}
+	if fi, err := os.Stat(v); err != nil || !fi.IsDir() {
+		t.Skip("case-sensitive file system")
+	}
+	return v
+}
+
+func TestExistingRootsSameFolderOnce(t *testing.T) {
+	base := t.TempDir()
+	src := filepath.Join(base, "source")
+	mkdirs(t, base, "source", "other")
+	other := filepath.Join(base, "other")
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(src, link); err != nil {
+		t.Fatal(err)
+	}
+	want := existingRoots([]string{src})
+	if got := existingRoots([]string{src, link, other, filepath.Join(base, "missing")}); !reflect.DeepEqual(got, append(want, canonical(other))) {
+		t.Errorf("symlink/missing: got %v", got)
+	}
+
+	upper := caseVariant(t, src)
+	got := existingRoots([]string{upper, src, other})
+	if len(got) != 2 || dirKey(got[0]) != dirKey(src) {
+		t.Fatalf("~/Source and ~/source must count once: got %v", got)
+	}
+	if !strings.HasSuffix(got[0], "SOURCE") {
+		t.Errorf("first spelling should win: got %v", got)
+	}
+}
+
+func TestCaseVariantsListedOnce(t *testing.T) {
+	t.Setenv("ROOST_HOME", t.TempDir())
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	base := t.TempDir()
+	mkdirs(t, base, "source/api/.git", "source/web/.git")
+	src := canonical(filepath.Join(base, "source"))
+	upper := caseVariant(t, src)
+
+	repos := findRepos([]string{src, upper}, 3, 0, time.Time{})
+	if len(repos) != 2 {
+		t.Fatalf("each repo once across case variants: got %v", repos)
+	}
+
+	recordRecent(filepath.Join(upper, "api"), "claude")
+	var dirs []string
+	for _, f := range pickerFolders(filepath.Join(upper, "web"), repos) {
+		dirs = append(dirs, f.Dir)
+	}
+	if len(dirs) != 2 {
+		t.Errorf("picker must list each folder once: got %v", dirs)
 	}
 }
