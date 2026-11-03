@@ -82,6 +82,19 @@ func canonical(p string) string {
 	return p
 }
 
+// dirKey identifies a folder on disk (device + inode), so two spellings of the
+// same folder count as one: on macOS ~/Source and ~/source are the same
+// folder, and resolving symlinks doesn't change the case. Falls back to the
+// path when the folder can't be read.
+func dirKey(p string) string {
+	if fi, err := os.Stat(p); err == nil {
+		if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+			return fmt.Sprintf("%d:%d", st.Dev, st.Ino)
+		}
+	}
+	return p
+}
+
 // defaultSourceRoots are common places people keep code.
 var defaultSourceRoots = []string{
 	"~/Source", "~/source", "~/src", "~/code", "~/Code", "~/Projects", "~/projects",
@@ -95,17 +108,25 @@ func sourceRoots() []string {
 	if v, ok := tmuxOption("@roost_source_dirs"); ok {
 		candidates = strings.Fields(v)
 	}
+	return existingRoots(candidates)
+}
+
+// existingRoots keeps the candidates that are folders, once each (the first
+// spelling wins when two name the same folder).
+func existingRoots(candidates []string) []string {
 	var out []string
 	seen := map[string]bool{}
 	for _, c := range candidates {
 		p, err := filepath.EvalSymlinks(expandTilde(c))
-		if err != nil || seen[p] {
+		if err != nil {
 			continue
 		}
-		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-			seen[p] = true
-			out = append(out, p)
+		fi, err := os.Stat(p)
+		if err != nil || !fi.IsDir() || seen[dirKey(p)] {
+			continue
 		}
+		seen[dirKey(p)] = true
+		out = append(out, p)
 	}
 	return out
 }
@@ -136,8 +157,8 @@ func scanRepos(roots []string, depth, limit int, deadline time.Time, found ...fu
 			return
 		}
 		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
-			if !seen[dir] {
-				seen[dir] = true
+			if k := dirKey(dir); !seen[k] {
+				seen[k] = true
 				out = append(out, dir)
 				for _, f := range found {
 					f(dir)
@@ -383,13 +404,13 @@ func pickerFolders(cwd string, repos []string) []pickerFolder {
 	seen := map[string]bool{}
 	add := func(d string) {
 		d = canonical(d)
-		if d == "" || seen[d] {
+		if d == "" {
 			return
 		}
-		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
+		if fi, err := os.Stat(d); err != nil || !fi.IsDir() || seen[dirKey(d)] {
 			return
 		}
-		seen[d] = true
+		seen[dirKey(d)] = true
 		out = append(out, pickerFolder{Dir: d, Tags: tags(d)})
 	}
 	add(cwd)
