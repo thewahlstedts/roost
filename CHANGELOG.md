@@ -13,6 +13,9 @@ workflow refuses to publish a version that has no section here.
 - The **+ new** picker no longer lists every repo twice on Macs where both
   `~/Source` and `~/source` match the same folder (macOS ignores case in
   folder names).
+- The **+ new** picker shows which CLI the new tab will run: an "open with"
+  line lists every CLI, with the one Enter will run highlighted. Press Tab
+  (Shift-Tab to go back) to switch.
 
 ## v0.5.1 — 2026-11-03
 
