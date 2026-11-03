@@ -146,6 +146,13 @@ set -g @roost_agents "claude pi"      # what Tab cycles through in the picker
 | `codex` | `codex` | most recent session (`codex resume --last`) | no |
 | `devin` | `devin` | most recent session in the tab's folder (`devin -c`) | no |
 | `grok` | `grok` | starts fresh | no |
+| `factory` | `factory` | runs `factory` again, which continues the run or planning | no |
+
+Presets you have installed show up automatically: in `roost setup`'s list and
+when you press **Tab** in the **+ new** picker. `factory` is an agent pipeline
+(plan → develop → test → review → merge) rather than a chat; run one per repo,
+since it keeps its state in the repo's `.factory/` folder. roost's hook
+ignores the non-interactive `claude -p` runs such pipelines make.
 
 Change a preset or add any CLI. `{id}` is a UUID roost generates per tab, so
 use it when the CLI can be pinned to a session:
