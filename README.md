@@ -107,7 +107,8 @@ new tab (recent Claude projects first; type to filter; **Tab** switches which
 CLI it opens), double-click a tab to rename it. Click **? help** for a cheat
 sheet. While it's open, `n` and `t` open tabs directly.
 
-**Move tabs** by dragging them along the bar, with **Cmd+Shift+← / →** (iTerm
+**Move tabs** by dragging one and dropping it where you want it (on another
+tab, past the last tab, or on the 🐓 label for first), with **Cmd+Shift+← / →** (iTerm
 profile), or by right-clicking a tab for a menu (move left/right, to start/end,
 rename, close). The order is kept across restarts.
 
