@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"golang.org/x/term"
 )
 
 // settings.conf holds what `roost setup` asked you (today: the default CLI).
@@ -54,7 +52,7 @@ func suggestedAgent() string {
 // setupAgent decides the default CLI during `roost setup`:
 // --agent NAME sets it; otherwise ask once (interactive) or pick the first
 // installed one (non-interactive). Returns the chosen name.
-func setupAgent(flag string) (string, error) {
+func setupAgent(flag string, reask, interactive bool, in *bufio.Reader) (string, error) {
 	custom := configuredAgent(customConfPath())
 	if flag != "" {
 		if !validAgentName(flag) {
@@ -70,6 +68,14 @@ func setupAgent(flag string) (string, error) {
 		warnCustomOverride(custom, flag)
 		return flag, nil
 	}
+	if cur := configuredAgent(settingsConfPath()); cur != "" && reask && interactive && custom == "" {
+		choice := askAgent(cur, in)
+		if err := writeSettingsAgent(choice); err != nil {
+			return "", err
+		}
+		fmt.Printf("Default CLI for new tabs: %s\n", choice)
+		return choice, nil
+	}
 	if cur := configuredAgent(settingsConfPath()); cur != "" {
 		eff := cur
 		if custom != "" {
@@ -84,8 +90,8 @@ func setupAgent(flag string) (string, error) {
 	}
 
 	choice := suggestedAgent()
-	if term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) {
-		choice = askAgent(choice)
+	if interactive {
+		choice = askAgent(choice, in)
 	}
 	if err := writeSettingsAgent(choice); err != nil {
 		return "", err
@@ -94,7 +100,7 @@ func setupAgent(flag string) (string, error) {
 	return choice, nil
 }
 
-func askAgent(suggest string) string {
+func askAgent(suggest string, in *bufio.Reader) string {
 	fmt.Println("Which AI coding CLI do you use? New tabs will run it.")
 	fmt.Println("(You can still pick another per tab: press Tab in the '+ new' folder picker.)")
 	var opts []Agent // AI CLIs only; editors aren't a "default CLI"
@@ -115,7 +121,6 @@ func askAgent(suggest string) string {
 		fmt.Printf("  %d) %-8s %-25s%s\n", i+1, a.Name, agentLabels[a.Name], mark)
 	}
 	fmt.Println("  or type the name of another CLI you've defined in custom.conf")
-	in := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf("Choose [%d]: ", def)
 		line, err := in.ReadString('\n')
@@ -165,15 +170,7 @@ func warnCustomOverride(custom, chosen string) {
 	}
 }
 
-func writeSettingsAgent(name string) error {
-	if err := os.MkdirAll(homeDir(), 0o700); err != nil {
-		return err
-	}
-	body := "# Written by `roost setup`. Change with: roost setup --agent NAME\n" +
-		"# (custom.conf is loaded after this file, so settings there win.)\n" +
-		"set -g @roost_default_agent " + name + "\n"
-	return os.WriteFile(settingsConfPath(), []byte(body), 0o600)
-}
+func writeSettingsAgent(name string) error { return writeSetting("@roost_default_agent", name) }
 
 // wantsClaudeHook: install the Claude hook when Claude Code is around, even
 // if it isn't the default (you can still open Claude tabs).

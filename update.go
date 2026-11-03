@@ -308,10 +308,27 @@ func cmdUpdate(args []string) error {
 			tmux("set", "-g", "@roost_version", res.Latest)
 		}
 		fmt.Printf("Updated roost %s → %s. Open roost again to load everything new.\n", version, res.Latest)
+		if p := newSetupQuestions(); p != "" {
+			fmt.Println(p)
+		}
 	} else {
 		fmt.Printf("roost %s is up to date.\n", version)
 	}
 	return nil
+}
+
+// newSetupQuestions asks the just-installed binary (which may know setup
+// questions this one doesn't) whether anything new needs answering.
+func newSetupQuestions() string {
+	exe, err := updateTarget()
+	if err != nil {
+		return ""
+	}
+	out, err := exec.Command(exe, "setup", "--check").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func updateStampPath() string { return filepath.Join(homeDir(), "update-check") }
@@ -361,7 +378,11 @@ func runAutoUpdate() {
 	case res.Updated:
 		fmt.Printf("%s updated %s -> %s\n", stamp, version, res.Latest)
 		tmux("set", "-g", "@roost_version", res.Latest) // status bar shows it now
-		tmux("display-message", "-d", "8000", "roost: updated to "+res.Latest+" — open roost again to load everything new")
+		msg := "roost: updated to " + res.Latest + " — open roost again to load everything new"
+		if newSetupQuestions() != "" {
+			msg = "roost: updated to " + res.Latest + " — run 'roost setup' for its new settings"
+		}
+		tmux("display-message", "-d", "8000", msg)
 	case res.Newer:
 		fmt.Printf("%s %s available\n", stamp, res.Latest)
 		tmux("display-message", "-d", "8000", "roost: "+res.Latest+" is available — run 'roost update'")

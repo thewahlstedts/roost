@@ -239,7 +239,7 @@ func pickerFolders(cwd string) []pickerFolder {
 	for _, r := range recs {
 		add(r.dir)
 	}
-	for _, d := range findRepos(sourceRoots(), 4, 3000, time.Now().Add(400*time.Millisecond)) {
+	for _, d := range findRepos(sourceRoots(), sourceDepth(), 3000, time.Now().Add(400*time.Millisecond)) {
 		add(d)
 	}
 	return out
