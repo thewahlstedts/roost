@@ -20,6 +20,7 @@ func TestAgentCommands(t *testing.T) {
 		{"codex", "codex", "codex resume --last", false},
 		{"devin", "devin", "devin -c", false},
 		{"grok", "grok", "", false}, // no resume: roost starts it fresh
+		{"factory", "factory", "", false},
 	}
 	for _, c := range cases {
 		a := byName[c.agent]

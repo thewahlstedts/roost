@@ -18,11 +18,12 @@ import (
 func settingsConfPath() string { return filepath.Join(homeDir(), "settings.conf") }
 
 var agentLabels = map[string]string{
-	"claude": "Claude Code",
-	"pi":     "pi",
-	"codex":  "OpenAI Codex",
-	"devin":  "Devin",
-	"grok":   "Grok",
+	"claude":  "Claude Code",
+	"pi":      "pi",
+	"codex":   "OpenAI Codex",
+	"devin":   "Devin",
+	"grok":    "Grok",
+	"factory": "factory (agent pipeline)",
 }
 
 var defaultAgentLineRe = regexp.MustCompile(`(?m)^\s*set(-option)?\s+-g\s+@roost_default_agent\s+['"]?([a-z0-9_-]+)`)

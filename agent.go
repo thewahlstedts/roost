@@ -34,6 +34,10 @@ var builtinAgents = []Agent{
 	// session in the current folder, which is the tab's folder on restore.
 	{Name: "devin", Cmd: "devin", Start: "", Resume: "-c"},
 	{Name: "grok", Cmd: "grok", Start: "", Resume: ""},
+	// factory (an agent pipeline) has no session id to resume; re-running
+	// `factory` after a restart does "the next sensible thing" (continues a
+	// run, skipping merged chunks, or reopens planning).
+	{Name: "factory", Cmd: "factory", Start: "", Resume: ""},
 }
 
 var agentNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
