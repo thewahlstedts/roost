@@ -308,6 +308,10 @@ func cmdUpdate(args []string) error {
 			tmux("set", "-g", "@roost_version", res.Latest)
 		}
 		fmt.Printf("Updated roost %s → %s. Open roost again to load everything new.\n", version, res.Latest)
+		if notes := newBinaryOutput("changes", "--since", version); notes != "" && !strings.HasPrefix(notes, "No notes") {
+			fmt.Printf("\nWhat's new:\n\n%s\n", notes)
+			writeSeenVersion(res.Latest) // shown here, so no popup next time
+		}
 		if p := newSetupQuestions(); p != "" {
 			fmt.Println(p)
 		}
@@ -319,12 +323,15 @@ func cmdUpdate(args []string) error {
 
 // newSetupQuestions asks the just-installed binary (which may know setup
 // questions this one doesn't) whether anything new needs answering.
-func newSetupQuestions() string {
+func newSetupQuestions() string { return newBinaryOutput("setup", "--check") }
+
+// newBinaryOutput runs the just-installed roost and returns its output.
+func newBinaryOutput(args ...string) string {
 	exe, err := updateTarget()
 	if err != nil {
 		return ""
 	}
-	out, err := exec.Command(exe, "setup", "--check").Output()
+	out, err := exec.Command(exe, args...).Output()
 	if err != nil {
 		return ""
 	}

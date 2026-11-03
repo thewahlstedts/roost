@@ -42,6 +42,7 @@ const usage = `roost — keep your AI coding CLI tabs alive, even across restart
   roost keys            show keyboard shortcuts
   roost check           run this project's check (tests/lint) now
       --allow | --deny    approve or revoke it running automatically
+  roost changes         what's new in this version (--all: every release)
   roost update          install the latest release (roost checks daily)
       --check             only say whether there's a newer one
 
@@ -130,6 +131,8 @@ func main() {
 		}
 	case "check":
 		err = cmdCheck(args)
+	case "changes", "whatsnew":
+		err = cmdChanges(args)
 	case "tab-drop": // internal: drag-and-drop of a tab on the status bar
 		err = cmdTabDrop(args)
 	case "update":
@@ -178,6 +181,7 @@ func cmdOpen(native bool) error {
 		fmt.Println("You're already inside roost. (Ctrl-Space ? for keys)")
 		return nil
 	}
+	whatsNewSince := changesToShow() // before this run creates any state
 	if err := writeConf(); err != nil {
 		return err
 	}
@@ -208,6 +212,7 @@ func cmdOpen(native bool) error {
 	if notice != "" {
 		tmux("run-shell", "-b", "sleep 0.8; tmux -L "+shellQuote(socketName)+" display-message -d 6000 "+shellQuote(notice))
 	}
+	armChangesPopup(whatsNewSince)
 	maybeAutoUpdate()
 	return attach(native)
 }

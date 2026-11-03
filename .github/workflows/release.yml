@@ -30,6 +30,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The release page shows this version's CHANGELOG.md section; a tag
+      # without one is refused, so notes can't be forgotten.
+      - name: Release notes from CHANGELOG.md
+        run: |
+          sh scripts/release-notes.sh "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
       - name: Write signing key
         env:
           ROOST_SIGNING_KEY: ${{ secrets.ROOST_SIGNING_KEY }}
@@ -41,7 +48,7 @@ jobs:
         with:
           distribution: goreleaser
           version: v2.19.0
-          args: release --clean
+          args: release --clean --release-notes=${{ runner.temp }}/notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
