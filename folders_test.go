@@ -168,3 +168,18 @@ func TestCaseVariantsListedOnce(t *testing.T) {
 		t.Errorf("picker must list each folder once: got %v", dirs)
 	}
 }
+
+func TestFindReposInsideRootRepo(t *testing.T) {
+	root := t.TempDir()
+	mkdirs(t, root,
+		".git",                     // the code folder is itself a repo
+		"Github/api/.git",          // repos inside it are still found
+		"Github/api/libs/sub/.git", // but not repos inside those
+		"notes/.git",
+	)
+	got := findRepos([]string{root}, 4, 0, time.Time{})
+	want := []string{root, filepath.Join(root, "Github/api"), filepath.Join(root, "notes")}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v\nwant %v", got, want)
+	}
+}
