@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -19,6 +20,7 @@ type Agent struct {
 	Cmd    string
 	Start  string
 	Resume string
+	Editor bool // not an AI CLI: offered in the picker, not as setup's default
 }
 
 // Built-in presets. Everything can be overridden in ~/.roost/custom.conf:
@@ -38,6 +40,9 @@ var builtinAgents = []Agent{
 	// `factory` after a restart does "the next sensible thing" (continues a
 	// run, skipping merged chunks, or reopens planning).
 	{Name: "factory", Cmd: "factory", Start: "", Resume: ""},
+	// The fresh terminal editor, opened on the tab's folder (and again after
+	// a restart).
+	{Name: "fresh", Cmd: "fresh", Start: ".", Resume: ".", Editor: true},
 }
 
 var agentNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
@@ -127,6 +132,21 @@ func defaultAgent() string {
 	return "claude"
 }
 
+// shellChoice is the picker's "just open a tab here" option.
+const shellChoice = "shell"
+
+// pickerChoices is what Tab cycles through in the folder picker: the CLIs
+// (pickerAgents), then a plain shell tab.
+func pickerChoices() []string {
+	out := pickerAgents()
+	for _, n := range out {
+		if n == shellChoice {
+			return out
+		}
+	}
+	return append(out, shellChoice)
+}
+
 // pickerAgents lists the CLIs Tab cycles through in the folder picker:
 // @roost_agents if set, otherwise the default plus any installed presets.
 func pickerAgents() []string {
@@ -143,15 +163,41 @@ func pickerAgents() []string {
 	}
 	def := defaultAgent()
 	out := []string{def}
+	usedBefore := map[string]bool{} // CLIs you've opened tabs with
+	for _, e := range loadRecent() {
+		for n := range e.Used {
+			usedBefore[n] = true
+		}
+	}
 	for _, b := range builtinAgents {
 		if b.Name == def {
 			continue
 		}
-		if _, err := exec.LookPath(b.Cmd); err == nil {
+		if onPath(b.Cmd) || usedBefore[b.Name] {
 			out = append(out, b.Name)
 		}
 	}
 	return out
+}
+
+// extraBinDirs are where CLIs often live without being on a non-interactive
+// PATH (roost's popups inherit the tmux server's environment).
+var extraBinDirs = []string{
+	"~/.local/bin", "~/.cargo/bin", "~/go/bin", "~/.bun/bin", "~/.deno/bin",
+	"~/.npm-global/bin", "/opt/homebrew/bin", "/usr/local/bin",
+}
+
+// onPath reports whether cmd is installed: on PATH or in a common bin dir.
+func onPath(cmd string) bool {
+	if _, err := exec.LookPath(cmd); err == nil {
+		return true
+	}
+	for _, d := range extraBinDirs {
+		if fi, err := os.Stat(filepath.Join(expandTilde(d), cmd)); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 var shells = map[string]bool{"zsh": true, "bash": true, "fish": true, "sh": true, "dash": true, "ksh": true, "tcsh": true, "csh": true, "nu": true}

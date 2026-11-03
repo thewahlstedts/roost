@@ -104,14 +104,16 @@ func fuzzy(s, q string) bool {
 	return i == len(q)
 }
 
-// pick shows a tiny folder picker and opens a Claude tab in the choice.
+// pick shows the folder picker and opens a tab there, running the chosen
+// CLI (Tab cycles: your CLIs, editors, or a plain shell).
 func pick() error {
 	cwd, _ := os.Getwd()
-	all := []string{cwd}
-	for _, d := range recentDirs() {
-		if d != cwd {
-			all = append(all, d)
-		}
+	folders := pickerFolders(cwd)
+	all := make([]string, len(folders))
+	tagsOf := map[string]string{}
+	for i, f := range folders {
+		all[i] = f.Dir
+		tagsOf[f.Dir] = strings.Join(f.Tags, " · ")
 	}
 
 	fd := int(os.Stdin.Fd())
@@ -125,7 +127,7 @@ func pick() error {
 	defer fmt.Fprint(w, "\x1b[?25h\x1b[2J\x1b[H")
 
 	accent := accentSGR()
-	agents := pickerAgents()
+	agents := pickerChoices()
 	ai := 0
 	query, sel, top := "", 0, 0
 	buf := make([]byte, 16)
@@ -162,20 +164,16 @@ func pick() error {
 		b.WriteString("\x1b[2J\x1b[H")
 		fmt.Fprintf(&b, " \x1b[1;%sm›\x1b[0m %s\x1b[38;5;242m▏\x1b[0m\x1b[%dG\x1b[1;%sm%s\x1b[0m\r\n\r\n", accent, query, max(width-len(agents[ai])-1, 1), accent, agents[ai])
 		for i := top; i < len(list) && i < top+rows; i++ {
-			extra := ""
+			extra := tagsOf[list[i]]
 			if i == 0 && list[i] == cwd && q == "" {
-				extra = "(current)"
+				extra = strings.TrimSpace("(current)  " + extra)
 			}
 			fmt.Fprint(&b, row(list[i], extra, i == sel, width))
 		}
 		if len(list) == 0 {
 			b.WriteString("    \x1b[38;5;242mno matches — type a path like ~/code/thing\x1b[0m\r\n")
 		}
-		agentHint := ""
-		if len(agents) > 1 {
-			agentHint = " · tab switch CLI"
-		}
-		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open %s%s · esc\x1b[0m", h, agents[ai], agentHint)
+		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open with %s · tab: %s · esc\x1b[0m", h, agents[ai], strings.Join(agents, " → "))
 		fmt.Fprint(w, b.String())
 
 		n, err := os.Stdin.Read(buf)
@@ -191,7 +189,11 @@ func pick() error {
 				continue
 			}
 			term.Restore(fd, old)
-			_, err := newTab(list[sel], "", agents[ai])
+			agent := agents[ai]
+			if agent == shellChoice {
+				agent = "" // just a tab in that folder
+			}
+			_, err := newTab(list[sel], "", agent)
 			return err
 		case n == 1 && (k[0] == 127 || k[0] == 8):
 			if r := []rune(query); len(r) > 0 {
