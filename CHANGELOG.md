@@ -8,6 +8,14 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
+## Unreleased
+
+- The **+ new** picker no longer misses repos in big or slow code folders.
+  The repo scan used to stop after 0.4 seconds; now it runs in the background
+  until it's done, the picker opens instantly from the last scan, and the
+  footer shows `scanning repos… N so far` while it works.
+- `roost folders` scans your code folders now and reports what it found.
+
 ## v0.5.0 — 2026-11-03
 
 - `roost setup` now only asks about things you haven't set up yet, so run it
