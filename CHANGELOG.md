@@ -17,6 +17,9 @@ workflow refuses to publish a version that has no section here.
   line lists every CLI, with the one Enter will run highlighted. Press Tab
   (Shift-Tab to go back) to switch.
 - `roost --version` (or `-v`) prints the version instead of opening roost.
+- The **+ new** picker finds your repos when your code folder is itself a git
+  repo (say, one holding AI instructions for everything under it). roost used
+  to stop at that top repo and list only it.
 
 ## v0.5.1 — 2026-11-03
 

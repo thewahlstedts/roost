@@ -137,7 +137,10 @@ var skipDirs = map[string]bool{
 }
 
 // findRepos walks roots (up to depth levels down) for git repositories,
-// without descending into a repo once found. It stops after limit repos or
+// without descending into a repo once found (submodules, vendored copies).
+// A root that is itself a repo is listed and still searched: some people
+// keep a repo at the top of their code folder (e.g. AI instructions for
+// everything under it) that ignores the repos inside it. It stops after limit repos or
 // when the deadline passes.
 func findRepos(roots []string, depth, limit int, deadline time.Time) []string {
 	out, _ := scanRepos(roots, depth, limit, deadline)
@@ -150,8 +153,8 @@ func findRepos(roots []string, depth, limit int, deadline time.Time) []string {
 func scanRepos(roots []string, depth, limit int, deadline time.Time, found ...func(string)) (out []string, complete bool) {
 	complete = true
 	seen := map[string]bool{}
-	var walk func(dir string, d int)
-	walk = func(dir string, d int) {
+	var walk func(dir string, d int, root bool)
+	walk = func(dir string, d int, root bool) {
 		if (limit > 0 && len(out) >= limit) || (!deadline.IsZero() && time.Now().After(deadline)) {
 			complete = false
 			return
@@ -164,7 +167,9 @@ func scanRepos(roots []string, depth, limit int, deadline time.Time, found ...fu
 					f(dir)
 				}
 			}
-			return
+			if !root {
+				return
+			}
 		}
 		if d == 0 {
 			return
@@ -178,11 +183,11 @@ func scanRepos(roots []string, depth, limit int, deadline time.Time, found ...fu
 			if !e.IsDir() || strings.HasPrefix(n, ".") || skipDirs[n] {
 				continue
 			}
-			walk(filepath.Join(dir, n), d-1)
+			walk(filepath.Join(dir, n), d-1, false)
 		}
 	}
 	for _, r := range roots {
-		walk(r, depth)
+		walk(r, depth, true)
 	}
 	sort.Strings(out)
 	return out, complete
