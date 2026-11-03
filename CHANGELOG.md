@@ -8,7 +8,7 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
-## Unreleased
+## v0.6.0 — 2026-11-03
 
 - The **+ new** picker no longer lists every repo twice on Macs where both
   `~/Source` and `~/source` match the same folder (macOS ignores case in
