@@ -108,13 +108,51 @@ func fuzzy(s, q string) bool {
 // CLI (Tab cycles: your CLIs, editors, or a plain shell).
 func pick() error {
 	cwd, _ := os.Getwd()
-	folders := pickerFolders(cwd)
-	all := make([]string, len(folders))
+	roots, depth := sourceRoots(), sourceDepth()
+	var all []string
 	tagsOf := map[string]string{}
-	for i, f := range folders {
-		all[i] = f.Dir
-		tagsOf[f.Dir] = strings.Join(f.Tags, " · ")
+	build := func(repos []string) {
+		folders := pickerFolders(cwd, repos)
+		all = make([]string, len(folders))
+		for i, f := range folders {
+			all[i] = f.Dir
+			tagsOf[f.Dir] = strings.Join(f.Tags, " · ")
+		}
 	}
+	// Open instantly from the last scan; a background scan (never cut short)
+	// refreshes it, and the list follows along.
+	cache, _ := readRepoCache()
+	if !cache.matches(roots, depth) {
+		cache = repoCache{}
+	}
+	build(cache.Repos)
+	if len(roots) > 0 {
+		startRepoScan(roots, depth)
+	}
+	scanStatus := func() string {
+		switch {
+		case len(roots) == 0:
+			return ""
+		case cache.Scanning || cache.Finished.IsZero():
+			return fmt.Sprintf(" · scanning repos… %d so far", len(cache.Repos))
+		default:
+			return fmt.Sprintf(" · %d repos", len(cache.Repos))
+		}
+	}
+	keys := make(chan []byte)
+	go func() {
+		for {
+			b := make([]byte, 16)
+			n, err := os.Stdin.Read(b)
+			if err != nil {
+				close(keys)
+				return
+			}
+			keys <- b[:n]
+		}
+	}()
+	tick := time.NewTicker(300 * time.Millisecond)
+	defer tick.Stop()
 
 	fd := int(os.Stdin.Fd())
 	old, err := term.MakeRaw(fd)
@@ -130,7 +168,6 @@ func pick() error {
 	agents := pickerChoices()
 	ai := 0
 	query, sel, top := "", 0, 0
-	buf := make([]byte, 16)
 	for {
 		// Build the visible list.
 		var list []string
@@ -173,14 +210,37 @@ func pick() error {
 		if len(list) == 0 {
 			b.WriteString("    \x1b[38;5;242mno matches — type a path like ~/code/thing\x1b[0m\r\n")
 		}
-		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open with %s · tab: %s · esc\x1b[0m", h, agents[ai], strings.Join(agents, " → "))
+		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open with %s · tab: %s · esc%s\x1b[0m", h, agents[ai], strings.Join(agents, " → "), scanStatus())
 		fmt.Fprint(w, b.String())
 
-		n, err := os.Stdin.Read(buf)
-		if err != nil {
-			return err
+		var k []byte
+		select {
+		case kb, ok := <-keys:
+			if !ok {
+				return nil
+			}
+			k = kb
+		case <-tick.C:
+			// Follow the background scan: rebuild when it found more or finished.
+			if c, ok := readRepoCache(); ok && c.matches(roots, depth) &&
+				(len(c.Repos) != len(cache.Repos) || c.Scanning != cache.Scanning || !c.Finished.Equal(cache.Finished)) {
+				keep := ""
+				if sel >= 0 && sel < len(list) {
+					keep = list[sel]
+				}
+				cache = c
+				build(c.Repos)
+				if keep != "" { // stay on the same folder
+					for i, d := range filterDirs(all, strings.TrimSpace(query)) {
+						if d == keep {
+							sel = i
+						}
+					}
+				}
+			}
+			continue
 		}
-		k := buf[:n]
+		n := len(k)
 		switch {
 		case n == 1 && (k[0] == 27 || k[0] == 3): // esc, ctrl-c
 			return nil

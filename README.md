@@ -131,6 +131,13 @@ set -g @roost_source_depth 4                  # levels below them (1-10)
 
 `roost setup` asks for these and suggests both from what it finds.
 
+Scanning big folders can take a few seconds, so the scan runs in the
+background and is never cut short: the picker opens instantly with the last
+scan's results, the footer shows `scanning repos… N so far` while a fresh scan
+runs, and new repos appear as they're found (closing the picker doesn't stop
+it). `roost folders` runs the scan now and reports what it searched, how many
+repos it found and how long it took; `roost folders --list` lists them.
+
 **Move tabs** by dragging one and dropping it where you want it (on another
 tab, past the last tab, or on the 🐓 label for first), with **Cmd+Shift+← / →** (iTerm
 profile), or by right-clicking a tab for a menu (move left/right, to start/end,

@@ -73,3 +73,36 @@ func TestPickerChoicesAndEditors(t *testing.T) {
 		t.Errorf("fresh preset wrong: %+v", fresh)
 	}
 }
+
+func TestScanUnlimitedAndCache(t *testing.T) {
+	t.Setenv("ROOST_HOME", t.TempDir())
+	root := t.TempDir()
+	mkdirs(t, root, "a/.git", "b/c/.git", "b/d/e/.git")
+	var seen []string
+	repos, complete := scanRepos([]string{root}, 10, 0, time.Time{}, func(d string) { seen = append(seen, d) })
+	if !complete || len(repos) != 3 || len(seen) != 3 {
+		t.Fatalf("unlimited scan: %v %v %v", repos, complete, seen)
+	}
+	if _, complete := scanRepos([]string{root}, 10, 1, time.Time{}); complete {
+		t.Error("a limited scan that hit its limit must report incomplete")
+	}
+
+	c := refreshRepos([]string{root}, 10, nil)
+	got, ok := readRepoCache()
+	if !ok || got.Scanning || got.Finished.IsZero() || len(got.Repos) != 3 || len(c.Repos) != 3 {
+		t.Fatalf("cache after scan: %+v", got)
+	}
+	if !got.matches([]string{root}, 10) || got.matches([]string{root}, 4) || got.matches([]string{"/x"}, 10) {
+		t.Error("cache must only match the settings it was made with")
+	}
+	if got.running() {
+		t.Error("a finished scan isn't running")
+	}
+	stuck := repoCache{Scanning: true, PID: 999999} // crashed scan
+	if stuck.running() {
+		t.Error("a dead scan pid must not count as running")
+	}
+	if fi, _ := os.Stat(repoCachePath()); fi.Mode().Perm() != 0o600 {
+		t.Errorf("repos.json mode %v", fi.Mode().Perm())
+	}
+}

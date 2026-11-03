@@ -5,11 +5,16 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
+
+	"golang.org/x/term"
 )
 
 func recentPath() string { return filepath.Join(homeDir(), "recent.json") }
@@ -112,19 +117,31 @@ var skipDirs = map[string]bool{
 
 // findRepos walks roots (up to depth levels down) for git repositories,
 // without descending into a repo once found. It stops after limit repos or
-// when the deadline passes, so a huge folder never stalls the picker.
+// when the deadline passes.
 func findRepos(roots []string, depth, limit int, deadline time.Time) []string {
-	var out []string
+	out, _ := scanRepos(roots, depth, limit, deadline)
+	return out
+}
+
+// scanRepos is findRepos that also says whether it finished (false when the
+// limit or deadline cut it short). limit <= 0 and a zero deadline mean no
+// limit; found, if set, is called for each repo as it's found.
+func scanRepos(roots []string, depth, limit int, deadline time.Time, found ...func(string)) (out []string, complete bool) {
+	complete = true
 	seen := map[string]bool{}
 	var walk func(dir string, d int)
 	walk = func(dir string, d int) {
-		if len(out) >= limit || time.Now().After(deadline) {
+		if (limit > 0 && len(out) >= limit) || (!deadline.IsZero() && time.Now().After(deadline)) {
+			complete = false
 			return
 		}
 		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
 			if !seen[dir] {
 				seen[dir] = true
 				out = append(out, dir)
+				for _, f := range found {
+					f(dir)
+				}
 			}
 			return
 		}
@@ -147,7 +164,147 @@ func findRepos(roots []string, depth, limit int, deadline time.Time) []string {
 		walk(r, depth)
 	}
 	sort.Strings(out)
+	return out, complete
+}
+
+// Repo scans can take seconds on big or slow disks, so they run in their own
+// background process (`roost folders --refresh`) with no time limit, saving
+// progress to this cache as they go. The picker shows the cache and follows
+// the scan live; closing the picker doesn't stop it.
+func repoCachePath() string { return filepath.Join(homeDir(), "repos.json") }
+
+type repoCache struct {
+	Roots    []string  `json:"roots"`
+	Depth    int       `json:"depth"`
+	Repos    []string  `json:"repos"`
+	Scanning bool      `json:"scanning"`
+	PID      int       `json:"pid,omitempty"`
+	Started  time.Time `json:"started"`
+	Finished time.Time `json:"finished,omitzero"`
+}
+
+func readRepoCache() (repoCache, bool) {
+	var c repoCache
+	b, err := os.ReadFile(repoCachePath())
+	if err != nil || json.Unmarshal(b, &c) != nil {
+		return c, false
+	}
+	return c, true
+}
+
+// matches: the cache was made for these settings.
+func (c repoCache) matches(roots []string, depth int) bool {
+	return c.Depth == depth && strings.Join(c.Roots, "\x00") == strings.Join(roots, "\x00")
+}
+
+// running: a scan process is still working on it.
+func (c repoCache) running() bool {
+	if !c.Scanning || c.PID <= 0 {
+		return false
+	}
+	if syscall.Kill(c.PID, 0) != nil {
+		return false // crashed or killed: start a new scan
+	}
+	out, _ := exec.Command("ps", "-o", "args=", "-p", fmt.Sprint(c.PID)).Output()
+	return strings.Contains(string(out), "folders --refresh") // pids get reused
+}
+
+func saveRepoCache(c repoCache) {
+	if os.MkdirAll(homeDir(), 0o700) != nil {
+		return
+	}
+	b, _ := json.Marshal(c)
+	tmp := fmt.Sprintf("%s.%d.tmp", repoCachePath(), os.Getpid())
+	if os.WriteFile(tmp, b, 0o600) == nil {
+		os.Rename(tmp, repoCachePath())
+	}
+}
+
+// refreshRepos scans with no limits, saving progress about twice a second.
+func refreshRepos(roots []string, depth int, progress func(n int)) repoCache {
+	c := repoCache{Roots: roots, Depth: depth, Scanning: true, PID: os.Getpid(), Started: time.Now()}
+	if prev, ok := readRepoCache(); ok && prev.matches(roots, depth) {
+		c.Repos = prev.Repos // keep showing the last results while rescanning
+	}
+	saveRepoCache(c)
+	var found []string
+	last := time.Now()
+	repos, _ := scanRepos(roots, depth, 0, time.Time{}, func(d string) {
+		found = append(found, d)
+		if progress != nil {
+			progress(len(found))
+		}
+		if time.Since(last) > 500*time.Millisecond {
+			last = time.Now()
+			c.Repos = mergeRepos(c.Repos, found)
+			saveRepoCache(c)
+		}
+	})
+	c.Repos, c.Scanning, c.Finished = repos, false, time.Now()
+	saveRepoCache(c)
+	return c
+}
+
+func mergeRepos(a, b []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, l := range [][]string{a, b} {
+		for _, d := range l {
+			if !seen[d] {
+				seen[d] = true
+				out = append(out, d)
+			}
+		}
+	}
+	sort.Strings(out)
 	return out
+}
+
+// startRepoScan launches a background scan unless one is already running.
+func startRepoScan(roots []string, depth int) {
+	if c, ok := readRepoCache(); ok && c.running() && c.matches(roots, depth) {
+		return
+	}
+	cmd := exec.Command(selfPath(), "folders", "--refresh")
+	cmd.Env = os.Environ()
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // outlives the picker
+	if cmd.Start() == nil {
+		cmd.Process.Release()
+	}
+}
+
+// cmdFolders implements `roost folders`: scan now and report.
+//
+//	roost folders          scan, then print what was searched and found
+//	roost folders --list   also list every repo
+func cmdFolders(args []string) error {
+	roots, depth := sourceRoots(), sourceDepth()
+	if hasFlag(args, "--refresh") { // background worker started by the picker
+		refreshRepos(roots, depth, nil)
+		return nil
+	}
+	var t []string
+	for _, r := range roots {
+		t = append(t, tilde(r))
+	}
+	fmt.Printf("Code folders: %s\nDepth: %d levels\n", strings.Join(t, " "), depth)
+	if len(roots) == 0 {
+		fmt.Println("No code folders found: set them with roost setup --source-dirs \"~/Source\"")
+		return nil
+	}
+	start := time.Now()
+	c := refreshRepos(roots, depth, func(n int) {
+		if term.IsTerminal(int(os.Stdout.Fd())) {
+			fmt.Printf("\r  scanning… %d repos", n)
+		}
+	})
+	fmt.Printf("\r  found %d repos in %s\n", len(c.Repos), time.Since(start).Round(time.Millisecond))
+	if hasFlag(args, "--list") {
+		for _, r := range c.Repos {
+			fmt.Println("  " + tilde(r))
+		}
+	}
+	return nil
 }
 
 // pickerFolder is one row in the picker.
@@ -157,8 +314,8 @@ type pickerFolder struct {
 }
 
 // pickerFolders lists the current folder, then recently used folders (newest
-// first), then the rest of the repos under your source folders.
-func pickerFolders(cwd string) []pickerFolder {
+// first), then the rest of repos (from a repo scan).
+func pickerFolders(cwd string, repos []string) []pickerFolder {
 	recent := map[string]*recentEntry{}
 	for d, e := range loadRecent() {
 		d = canonical(d)
@@ -239,7 +396,7 @@ func pickerFolders(cwd string) []pickerFolder {
 	for _, r := range recs {
 		add(r.dir)
 	}
-	for _, d := range findRepos(sourceRoots(), sourceDepth(), 3000, time.Now().Add(400*time.Millisecond)) {
+	for _, d := range repos {
 		add(d)
 	}
 	return out
