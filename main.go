@@ -22,7 +22,7 @@ const usage = `roost — keep your AI coding CLI tabs alive, even across restart
 
   roost                 open roost (restores your tabs after a restart)
   roost new [dir]       new tab running your CLI (default: claude) in dir
-      --agent NAME        use another CLI: pi, codex, devin, grok, or your own
+      --agent NAME        use another CLI: pi, codex, devin, grok, factory, or your own
       --shell             plain shell tab instead
       --name NAME         fixed tab name (default: follows the folder)
   roost ls              list tabs (running, or last saved)
@@ -48,6 +48,13 @@ func main() {
 	cmd := ""
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		cmd, args = args[0], args[1:]
+	}
+	// -h/--help anywhere means "show help", never "do it": otherwise
+	// `roost kill --help` would close everything and `roost --help` would
+	// open roost.
+	if wantsHelp(args) && cmd != "hook" {
+		fmt.Print(usage)
+		return
 	}
 	var err error
 	switch cmd {
@@ -126,6 +133,8 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+func wantsHelp(args []string) bool { return hasFlag(args, "-h") || hasFlag(args, "--help") }
 
 func hasFlag(args []string, f string) bool {
 	for _, a := range args {

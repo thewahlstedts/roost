@@ -85,3 +85,16 @@ func TestConfiguredAgent(t *testing.T) {
 		t.Errorf("missing file = %q", got)
 	}
 }
+
+func TestWantsHelp(t *testing.T) {
+	for _, a := range [][]string{{"--help"}, {"-h"}, {"--force", "--help"}} {
+		if !wantsHelp(a) {
+			t.Errorf("wantsHelp(%q) = false", a)
+		}
+	}
+	for _, a := range [][]string{{}, {"--shell"}, {"--name", "help"}} {
+		if wantsHelp(a) {
+			t.Errorf("wantsHelp(%q) = true", a)
+		}
+	}
+}
