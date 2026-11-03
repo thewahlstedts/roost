@@ -17,6 +17,12 @@ func runHook() {
 	if !insideRoost() || pane == "" {
 		return // not running inside roost: do nothing, stay fast
 	}
+	// Only interactive Claude sessions own a tab. `claude -p` runs (e.g. a
+	// pipeline like factory in this tab) report "sdk-cli" and must not
+	// make roost resume their throwaway sessions after a restart.
+	if e := os.Getenv("CLAUDE_CODE_ENTRYPOINT"); e != "" && e != "cli" {
+		return
+	}
 	var ev struct {
 		Event   string `json:"hook_event_name"`
 		Session string `json:"session_id"`
@@ -42,7 +48,12 @@ func runHook() {
 		tmux("set-option", "-p", "-t", pane, "@roost_agent", "claude")
 		setState("idle")
 		save()
-	case "UserPromptSubmit", "PostToolUse":
+	case "UserPromptSubmit":
+		setState("working")
+		// Claude is changing things again: an earlier check result is stale.
+		stopCheck(pane)
+		setCheckState(pane, "")
+	case "PostToolUse":
 		setState("working")
 	case "PermissionRequest":
 		setState("waiting")
@@ -59,6 +70,7 @@ func runHook() {
 		} else {
 			setState("done")
 		}
+		startBackgroundCheck(pane, ev.Cwd)
 	case "SessionEnd":
 		// Only forget the session when you deliberately quit Claude. A
 		// reboot/kill must NOT clear it, or we couldn't resume it later.

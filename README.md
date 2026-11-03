@@ -214,6 +214,29 @@ Prefer iTerm's own tabs? `roost --native` uses iTerm's tmux integration.
 - Bar background and split borders are plain tmux options: `status-style`,
   `pane-border-style`.
 
+### Checks (tests and lint after each turn)
+
+Optional: when a Claude tab finishes a turn, roost can run the project's
+check command in the background and mark the tab: **✓** passed, **✗**
+failed, **◌** running, **?** needs your approval. When Claude starts working
+again the old result is cleared (and a running check stopped). `Ctrl-Space c`
+or right-click → *Check output* shows the last run.
+
+```
+set -g @roost_checks on            # off by default
+set -g @roost_check_timeout 600    # seconds
+```
+
+The command comes from a `.roost-check` file in the repo (first non-comment
+line, e.g. `make lint test`), or is detected: `make test`, `go test ./...`,
+`cargo test`, `npm test`, `pytest`.
+
+Nothing runs until you've approved that project's command, because a cloned
+repo shouldn't be able to make roost execute things: run `roost check` in the
+project (it shows the command and asks), or `roost check --allow`. If the
+command changes, it needs approving again; `roost check --deny` revokes.
+`roost check` also runs it on demand in any tab.
+
 ### Theme colours
 
 Any tmux colour works: a name (`green`, `brightyellow`), `colourN`, or

@@ -239,7 +239,9 @@ bind r   command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\""
 bind x   confirm-before -p "Close tab '#W'? (y/n)" kill-window
 bind d   detach-client
 bind s   run -b "@BIN@ save" \; display-message "roost: saved"
-bind ?   display-popup -E -w 70 -h 27 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait"
+# (popups don't expand formats in their command; run-shell does)
+bind c   run-shell -b "@BIN@ check --popup --pane #{pane_id} --client #{client_name}"
+bind ?   display-popup -E -w 72 -h 29 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait"
 bind Left  previous-window
 bind Right next-window
 # Move the current tab left/right (stays selected; stops at the ends).
@@ -288,7 +290,7 @@ bind -n M-8 select-window -t :=8
 bind -n M-9 select-window -t :=9
 
 # ---- mouse ----
-bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 70 -h 27 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
+bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 72 -h 29 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
 # Drag a tab along the bar and drop it to move it there. tmux reports the
 # drag-start tab for every drag update, so act on the drop: pressing already
 # selected (made active) the dragged tab, and "=" is the tab under the
@@ -305,6 +307,7 @@ bind -n MouseDown3Status select-window -t = \; display-menu -x W -y W -T "#[alig
   "#{?window_start_flag,-,}Move to start" "^" { move-window -b -t :^ } \
   "#{?window_end_flag,-,}Move to end"   "$" { move-window -a -t :$ } \
   "" \
+  "Check output" c { run-shell -b "@BIN@ check --popup --pane #{pane_id} --client #{client_name}" } \
   "Rename"  r { command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\"" } \
   "Close"   x { confirm-before -p "Close tab '#W'? (y/n)" kill-window }
 bind -n DoubleClick1Status command-prompt -I "#W" -p "Rename tab:" "rename-window -t = -- \"%%%\""
@@ -354,9 +357,13 @@ set -g @roost_claude_marker '✳'
 set -g @roost_shell_marker_color colour242
 set -g @roost_claude_marker_color colour242
 set -g @roost_tab_marker "#{?#{||:#{@roost_agent},#{@roost_session}},#{?#{||:#{==:#{@roost_marker},claude},#{==:#{@roost_marker},both}},#[fg=#{@roost_claude_marker_color}]#{@roost_claude_marker} ,},#{?#{||:#{==:#{@roost_marker},shell},#{==:#{@roost_marker},both}},#[fg=#{@roost_shell_marker_color}]#{@roost_shell_marker} ,}}"
+# Check markers (after Claude finishes a turn, with @roost_checks on).
+set -g @roost_checks off
+set -g @roost_check_timeout 600
+set -g @roost_check_marker "#{?#{==:#{@roost_check},pass},#[fg=#{@roost_done_color}]✓ ,#{?#{==:#{@roost_check},fail},#[fg=#{@roost_waiting_color}]✗ ,#{?#{==:#{@roost_check},running},#[fg=colour242]◌ ,#{?#{==:#{@roost_check},untrusted},#[fg=colour242]? ,}}}}"
 set -g window-status-separator "#[fg=colour239]│"
-set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,#{?#{==:#{@roost_state},done},#[fg=#{@roost_done_color}]● ,}}}#{E:@roost_tab_marker}#[fg=#{@roost_tab_color}]#I #W "
-set -g window-status-current-format "#[bg=#{@roost_current_tab_bg},fg=#{@roost_current_tab_color},bold] #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,}}#{E:@roost_tab_marker}#[fg=#{@roost_current_tab_color}]#I #W "
+set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,#{?#{==:#{@roost_state},done},#[fg=#{@roost_done_color}]● ,}}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_tab_color}]#I #W "
+set -g window-status-current-format "#[bg=#{@roost_current_tab_bg},fg=#{@roost_current_tab_color},bold] #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_current_tab_color}]#I #W "
 set -g status-right-length 60
 set -g status-right "#(@BIN@ save --quiet)#[range=user|new]#[fg=#{@roost_new_color},bold] + new #[norange default]#[range=user|help]#[fg=colour242] ? help #[norange default]"
 
