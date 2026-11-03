@@ -55,6 +55,11 @@ new. `roost update` updates right away, and `roost update --check` only says
 whether there's a newer version. If a new version has something new to set
 up, roost says so: run `roost setup` and it asks only about that.
 
+The first time you open roost after an update, a popup shows what's new since
+the version you had (from [CHANGELOG.md](CHANGELOG.md)); `roost update` prints
+it too. `roost changes` shows this version's notes again, `roost changes
+--all` every release.
+
 ```
 set -g @roost_auto_update on       # on (default) | notify (just tell me) | off
 ```
@@ -322,8 +327,11 @@ CI (GitHub Actions) runs the same checks, the tests, and a TruffleHog secret
 scan of the full history on every push and pull request; Dependabot keeps the
 pinned actions and Go modules up to date.
 
-Releases: push a `v*` tag (e.g. `git tag -s v0.3.0 && git push origin
-v0.3.0`). The version comes from the tag. The release workflow waits for a
+Releases: add user-facing notes under `## Unreleased` in `CHANGELOG.md` as
+changes land. To release, rename that heading to the version (`## v0.5.0 —
+2026-11-04`), merge, then push a `v*` tag (e.g. `git tag -s v0.5.0 && git push
+origin v0.5.0`). The version comes from the tag, and the release workflow
+refuses a tag with no changelog section (it becomes the release page's notes). The release workflow waits for a
 maintainer to approve the `release` environment (which holds the signing key),
 then builds macOS and Linux binaries (arm64 + amd64), signs `checksums.txt`
 with `tools/sign`, and publishes them. `install.sh` and `roost update` use
