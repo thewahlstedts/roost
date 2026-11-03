@@ -138,6 +138,27 @@ func tmuxVersionOK(v string) bool {
 	return major > minTmuxMajor || (major == minTmuxMajor && minor >= minTmuxMinor)
 }
 
+// cmdTabDrop moves tab FROM to where tab TO is (after it when dragged
+// right, before it when dragged left), keeping FROM selected.
+func cmdTabDrop(args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: roost tab-drop FROM TO")
+	}
+	from, err1 := strconv.Atoi(args[0])
+	to, err2 := strconv.Atoi(args[1])
+	if err1 != nil || err2 != nil || from == to {
+		return nil
+	}
+	where := "-a"
+	if to < from {
+		where = "-b"
+	}
+	src := fmt.Sprintf("%s:=%d", sessionName, from)
+	dst := fmt.Sprintf("%s:=%d", sessionName, to)
+	_, err := tmux("move-window", where, "-s", src, "-t", dst)
+	return err
+}
+
 // versionLabel is what the status bar shows next to "roost": "v0.3.1", or
 // "dev" for local builds.
 func versionLabel() string {
@@ -268,8 +289,14 @@ bind -n M-9 select-window -t :=9
 
 # ---- mouse ----
 bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 70 -h 27 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
-# Drag a tab along the bar to move it (it swaps past each tab it crosses).
-bind -n MouseDrag1Status swap-window -d -t =
+# Drag a tab along the bar and drop it to move it there. tmux reports the
+# drag-start tab for every drag update, so act on the drop: pressing already
+# selected (made active) the dragged tab, and "=" is the tab under the
+# pointer. roost tab-drop does the move with both tabs named explicitly.
+bind -n MouseDragEnd1Status run-shell -t = "@BIN@ tab-drop #{active_window_index} #{window_index}"
+# Dropped past the last tab: move to the end. On the 🐓 label: to the start.
+bind -n MouseDragEnd1StatusDefault move-window -a -t :$
+bind -n MouseDragEnd1StatusLeft move-window -b -t :^
 # Right-click a tab: a small menu (it also selects the tab, so every item
 # acts on the tab you clicked).
 bind -n MouseDown3Status select-window -t = \; display-menu -x W -y W -T "#[align=centre] #W " \

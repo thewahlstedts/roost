@@ -102,6 +102,8 @@ func main() {
 		if hasFlag(args, "--wait") {
 			err = helpMenu()
 		}
+	case "tab-drop": // internal: drag-and-drop of a tab on the status bar
+		err = cmdTabDrop(args)
 	case "update":
 		err = cmdUpdate(args)
 	case "version", "--version":
@@ -391,7 +393,7 @@ const keysHelp = `
 
   Move tabs
     Cmd-Shift-← / → ........... move this tab left / right
-    drag a tab ................ move it along the bar
+    drag a tab, drop it ....... move it there (past the end = last)
     right-click a tab ......... move / rename / close menu
 
   New tab
