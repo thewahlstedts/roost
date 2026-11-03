@@ -180,7 +180,7 @@ func pick() error {
 		}
 		list = append(list, filterDirs(all, q)...)
 		width, h, _ := term.GetSize(fd)
-		rows := h - 4
+		rows := h - 5
 		if rows < 3 {
 			rows = 3
 		}
@@ -199,7 +199,8 @@ func pick() error {
 
 		var b strings.Builder
 		b.WriteString("\x1b[2J\x1b[H")
-		fmt.Fprintf(&b, " \x1b[1;%sm›\x1b[0m %s\x1b[38;5;242m▏\x1b[0m\x1b[%dG\x1b[1;%sm%s\x1b[0m\r\n\r\n", accent, query, max(width-len(agents[ai])-1, 1), accent, agents[ai])
+		fmt.Fprintf(&b, " \x1b[1;%sm›\x1b[0m %s\x1b[38;5;242m▏\x1b[0m\r\n", accent, query)
+		b.WriteString(cliBar(agents, ai, accent, width) + "\r\n\r\n")
 		for i := top; i < len(list) && i < top+rows; i++ {
 			extra := tagsOf[list[i]]
 			if i == 0 && list[i] == cwd && q == "" {
@@ -210,7 +211,11 @@ func pick() error {
 		if len(list) == 0 {
 			b.WriteString("    \x1b[38;5;242mno matches — type a path like ~/code/thing\x1b[0m\r\n")
 		}
-		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242mtype to filter · ↑↓ choose · enter open with %s · tab: %s · esc%s\x1b[0m", h, agents[ai], strings.Join(agents, " → "), scanStatus())
+		footer := []rune("type to filter · ↑↓ choose · enter open · tab switch CLI · esc" + scanStatus())
+		if len(footer) > width-2 { // never wrap: it would scroll the search line away
+			footer = append(footer[:max(width-3, 0)], '…')
+		}
+		fmt.Fprintf(&b, "\x1b[%d;1H \x1b[38;5;242m%s\x1b[0m", h, string(footer))
 		fmt.Fprint(w, b.String())
 
 		var k []byte
@@ -330,6 +335,33 @@ func row(dir, extra string, selected bool, width int) string {
 		return fmt.Sprintf(" \x1b[48;5;238;38;5;255;1m ▸ %s \x1b[22;38;5;246m%s \x1b[0m\r\n", name, parent)
 	}
 	return fmt.Sprintf("    \x1b[38;5;252m%s \x1b[38;5;242m%s\x1b[0m\r\n", name, parent)
+}
+
+// cliBar is the picker's "open with" line: every CLI tab cycles through, the
+// one enter will run highlighted in the accent colour. When they don't all
+// fit it shows just the chosen one and its place in the cycle.
+func cliBar(agents []string, cur int, accent string, width int) string {
+	const label, hint = " open with ", "   tab ⇄"
+	bg := "7" // reverse video if the accent isn't a foreground colour code
+	if strings.HasPrefix(accent, "38;") {
+		bg = "48;" + strings.TrimPrefix(accent, "38;") + ";38;5;231"
+	}
+	chosen := fmt.Sprintf("\x1b[1;%sm %s \x1b[0m", bg, agents[cur])
+	n := len([]rune(label)) + len([]rune(hint))
+	var parts []string
+	for i, a := range agents {
+		n += len([]rune(a)) + 3
+		if i == cur {
+			parts = append(parts, chosen)
+		} else {
+			parts = append(parts, "\x1b[38;5;246m "+a+" \x1b[0m")
+		}
+	}
+	line := strings.Join(parts, " ")
+	if n > width && len(agents) > 1 {
+		line = fmt.Sprintf("%s \x1b[38;5;242m%d/%d\x1b[0m", chosen, cur+1, len(agents))
+	}
+	return "\x1b[38;5;250m" + label + "\x1b[0m" + line + "\x1b[38;5;242m" + hint + "\x1b[0m"
 }
 
 // accentSGR turns the @roost_accent tmux colour into an ANSI colour code so

@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"regexp"
+	"strings"
+	"testing"
+)
 
 func TestColourSGR(t *testing.T) {
 	const fb = "FALLBACK"
@@ -52,5 +56,23 @@ func TestTmuxVersionOK(t *testing.T) {
 		if got := tmuxVersionOK(in); got != want {
 			t.Errorf("tmuxVersionOK(%q) = %v, want %v", in, got, want)
 		}
+	}
+}
+
+func TestCLIBar(t *testing.T) {
+	plain := func(s string) string { return regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(s, "") }
+	agents := []string{"claude", "pi", "shell"}
+	wide := cliBar(agents, 1, "38;2;224;71;58", 80)
+	if got := plain(wide); got != " open with  claude   pi   shell    tab ⇄" {
+		t.Errorf("wide bar: %q", got)
+	}
+	if !strings.Contains(wide, "48;2;224;71;58;38;5;231m pi ") {
+		t.Errorf("chosen CLI should sit on the accent background: %q", wide)
+	}
+	if got := plain(cliBar(agents, 2, "38;5;114", 20)); got != " open with  shell  3/3   tab ⇄" {
+		t.Errorf("narrow bar: %q", got)
+	}
+	if !strings.Contains(cliBar(agents, 0, "1", 80), "\x1b[1;7m claude ") {
+		t.Error("non-colour accent should fall back to reverse video")
 	}
 }
