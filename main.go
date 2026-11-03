@@ -51,11 +51,7 @@ const usage = `roost — keep your AI coding CLI tabs alive, even across restart
 `
 
 func main() {
-	args := os.Args[1:]
-	cmd := ""
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		cmd, args = args[0], args[1:]
-	}
+	cmd, args := splitCmd(os.Args[1:])
 	// -h/--help anywhere means "show help", never "do it": otherwise
 	// `roost kill --help` would close everything and `roost --help` would
 	// open roost.
@@ -140,7 +136,7 @@ func main() {
 		err = cmdTabDrop(args)
 	case "update":
 		err = cmdUpdate(args)
-	case "version", "--version":
+	case "version", "--version", "-v", "-V":
 		fmt.Println("roost", version)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
@@ -155,6 +151,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, "roost:", err)
 		os.Exit(1)
 	}
+}
+
+// splitCmd separates the subcommand from its arguments. Flags aren't
+// commands (`roost --native` opens roost), except the version flags, which
+// must print the version rather than open roost.
+func splitCmd(args []string) (cmd string, rest []string) {
+	if len(args) == 0 {
+		return "", args
+	}
+	switch a := args[0]; {
+	case a == "--version" || a == "-v" || a == "-V" || !strings.HasPrefix(a, "-"):
+		return a, args[1:]
+	}
+	return "", args
 }
 
 func wantsHelp(args []string) bool { return hasFlag(args, "-h") || hasFlag(args, "--help") }
