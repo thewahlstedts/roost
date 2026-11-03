@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"fmt"
 	"os"
@@ -30,8 +31,12 @@ const usage = `roost — keep your AI coding CLI tabs alive, even across restart
   roost restore         rebuild tabs from the last save
       --list              show older saves;  roost restore 3  uses one
   roost kill            save, then close everything
-  roost setup           choose your CLI, install the Claude hook (run once)
+  roost setup           asks what's not set up yet (your CLI, code folders),
+                        installs the Claude hook; re-run after updates
+      --all               ask everything again
       --agent NAME        set the default CLI without asking
+      --source-dirs "…"   folders to list repos from in '+ new'
+      --source-depth N    levels below them to look for repos (default 4)
       --remove            uninstall it
       --shortcut X        Ctrl+Cmd+X opens roost in iTerm (default R; 'none')
   roost keys            show keyboard shortcuts
@@ -83,10 +88,22 @@ func main() {
 	case "kill", "stop":
 		err = cmdKill()
 	case "setup":
+		if hasFlag(args, "--check") { // after an update: anything new to answer?
+			if p := pendingSummary(); p != "" {
+				fmt.Printf("New in this version to set up: %s. Run: roost setup\n", p)
+			}
+			return
+		}
 		remove := hasFlag(args, "--remove")
+		reask := hasFlag(args, "--all")
+		interactive := term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+		in := bufio.NewReader(os.Stdin)
 		agent := ""
 		if !remove {
-			agent, err = setupAgent(flagValue(args, "--agent"))
+			agent, err = setupAgent(flagValue(args, "--agent"), reask, interactive, in)
+			if err == nil {
+				err = setupSourceDirs(flagValue(args, "--source-dirs"), flagValue(args, "--source-depth"), reask, interactive, in)
+			}
 		}
 		if err == nil && (remove || wantsClaudeHook(agent)) {
 			err = setup(remove)
@@ -185,6 +202,8 @@ func cmdOpen(native bool) error {
 		notice = "roost: run 'roost setup' once to choose your CLI and set up restore"
 	} else if defaultAgent() == "claude" && !hooksInstalled() {
 		notice = "roost: run 'roost setup' so Claude sessions can be resumed after a restart"
+	} else if p := pendingSummary(); p != "" {
+		notice = "roost: new to set up (" + p + ") — run 'roost setup'"
 	}
 	if notice != "" {
 		tmux("run-shell", "-b", "sleep 0.8; tmux -L "+shellQuote(socketName)+" display-message -d 6000 "+shellQuote(notice))

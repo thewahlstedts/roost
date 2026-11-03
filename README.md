@@ -52,7 +52,8 @@ roost keeps itself up to date. When you open it, it checks GitHub at most
 once a day in the background and installs a newer release, then tells you in
 the status bar. Your tabs keep running; open roost again to load everything
 new. `roost update` updates right away, and `roost update --check` only says
-whether there's a newer version.
+whether there's a newer version. If a new version has something new to set
+up, roost says so: run `roost setup` and it asks only about that.
 
 ```
 set -g @roost_auto_update on       # on (default) | notify (just tell me) | off
@@ -69,11 +70,15 @@ turns the check off for a shell.
 
 ### What setup changes
 
-`roost setup` asks which AI CLI you use (it suggests the first one it finds
-installed) and makes that the default for new tabs. Re-running it doesn't ask
-again; change it with `roost setup --agent NAME`. It also:
+`roost setup` asks what isn't set up yet: which AI CLI you use (it suggests
+the first one it finds installed) and where your code lives (it suggests the
+folders where it finds git repos). Re-running it only asks about anything
+new, so run it after updating; `roost setup --all` asks everything again, and
+each answer has a flag: `--agent NAME`, `--source-dirs "~/Source ~/work"`,
+`--source-depth N`. It also:
 
-- saves your choice in `~/.roost/settings.conf`.
+- saves your answers in `~/.roost/settings.conf` (anything you set in
+  `custom.conf` instead counts as answered, and wins).
 - if Claude Code is installed, adds one hook command (`roost hook`) to
   `~/.claude/settings.json`, after backing the file up next to it. It's needed
   for exact Claude resume and the status dots, and does nothing outside roost.
@@ -114,9 +119,12 @@ CLIs, editors such as `fresh`, or **shell** for a plain tab in that folder.
 
 ```
 set -g @roost_source_dirs "~/Source ~/work"   # where to look for repos
-# default: whichever of ~/Source ~/src ~/code ~/Projects ~/dev ~/Developer
-#          ~/workspace ~/repos ~/git ~/go/src exist
+set -g @roost_source_depth 4                  # levels below them (1-10)
+# default folders: whichever of ~/Source ~/src ~/code ~/Projects ~/dev
+#                  ~/Developer ~/workspace ~/repos ~/git ~/go/src exist
 ```
+
+`roost setup` asks for these and suggests both from what it finds.
 
 **Move tabs** by dragging one and dropping it where you want it (on another
 tab, past the last tab, or on the 🐓 label for first), with **Cmd+Shift+← / →** (iTerm
