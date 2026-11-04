@@ -217,8 +217,13 @@ set -g base-index 1
 setw -g pane-base-index 1
 set -g renumber-windows on
 setw -g automatic-rename on
-# Claude tabs use the folder Claude reports (it can cd without its process moving).
-setw -g automatic-rename-format "#{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}"
+# Tabs are named after their git repo (@roost_root, which roost fills in), or
+# else their folder. Claude tabs use the folder Claude reports (@roost_cwd):
+# it can cd without its process moving.
+set -g @roost_path "#{?#{@roost_cwd},#{@roost_cwd},#{pane_current_path}}"
+set -g @roost_folder "#{?#{@roost_cwd},#{b:@roost_cwd},#{b:pane_current_path}}"
+set -g @roost_in_repo "#{&&:#{@roost_root},#{||:#{==:#{@roost_root},#{E:@roost_path}},#{m:#{@roost_root}/*,#{E:@roost_path}}}}"
+setw -g automatic-rename-format "#{?#{E:@roost_in_repo},#{b:@roost_root},#{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}}"
 set -g allow-rename off
 set -g set-titles on
 set -g set-titles-string "#W · roost"
@@ -361,9 +366,14 @@ set -g @roost_tab_marker "#{?#{||:#{@roost_agent},#{@roost_session}},#{?#{||:#{=
 set -g @roost_checks off
 set -g @roost_check_timeout 600
 set -g @roost_check_marker "#{?#{==:#{@roost_check},pass},#[fg=#{@roost_done_color}]✓ ,#{?#{==:#{@roost_check},fail},#[fg=#{@roost_waiting_color}]✗ ,#{?#{==:#{@roost_check},running},#[fg=colour242]◌ ,#{?#{==:#{@roost_check},untrusted},#[fg=colour242]? ,}}}}"
+# Subfolder: a tab in a repo's subfolder shows it after the name, dimmed
+# ("cluster-tooling › bootstrap"), renamed tabs too. @roost_subdir on|off
+set -g @roost_subdir on
+set -g @roost_subdir_color colour244
+set -g @roost_subdir_marker "#{?#{&&:#{!=:#{@roost_subdir},off},#{&&:#{E:@roost_in_repo},#{!=:#{E:@roost_path},#{@roost_root}}}},#[nobold]#[fg=#{@roost_subdir_color}] › #{E:@roost_folder},}"
 set -g window-status-separator "#[fg=colour239]│"
-set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,#{?#{==:#{@roost_state},done},#[fg=#{@roost_done_color}]● ,}}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_tab_color}]#I #W "
-set -g window-status-current-format "#[bg=#{@roost_current_tab_bg},fg=#{@roost_current_tab_color},bold] #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_current_tab_color}]#I #W "
+set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,#{?#{==:#{@roost_state},done},#[fg=#{@roost_done_color}]● ,}}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_tab_color}]#I #W#{E:@roost_subdir_marker} "
+set -g window-status-current-format "#[bg=#{@roost_current_tab_bg},fg=#{@roost_current_tab_color},bold] #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_current_tab_color}]#I #W#{E:@roost_subdir_marker} "
 set -g status-right-length 60
 set -g status-right "#(@BIN@ save --quiet)#[range=user|new]#[fg=#{@roost_new_color},bold] + new #[norange default]#[range=user|help]#[fg=colour242] ? help #[norange default]"
 
