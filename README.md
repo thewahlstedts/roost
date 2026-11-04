@@ -143,9 +143,16 @@ tab, past the last tab, or on the 🐓 label for first), with **Cmd+Shift+← / 
 profile), or by right-clicking a tab for a menu (move left/right, to start/end,
 rename, close). The order is kept across restarts.
 
-Tabs are named after the folder they're in (for Claude tabs, the folder Claude
-is working in) and update as you move around. Rename a tab and your name sticks,
-including across restarts.
+Tabs are named after the git repo they're in (or the folder, outside a repo;
+for Claude tabs, the folder Claude is working in) and update as you move
+around. In a subfolder of the repo, the tab shows it after the name, dimmed:
+`cluster-tooling › bootstrap`. Rename a tab and your name sticks, including
+across restarts; it still shows the subfolder.
+
+```
+set -g @roost_subdir off            # don't show the subfolder
+set -g @roost_subdir_color colour244
+```
 
 Other keys are `Ctrl-Space`, let go, then:
 

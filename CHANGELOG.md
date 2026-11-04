@@ -8,6 +8,13 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
+## Unreleased
+
+- Tabs are named after the git repo they're in, not the folder. Go into a
+  subfolder and the tab still says `cluster-tooling`, with the subfolder after
+  it, dimmed: `cluster-tooling › bootstrap`. Tabs you renamed show the
+  subfolder too. Turn it off with `set -g @roost_subdir off`.
+
 ## v0.6.0 — 2026-11-03
 
 - The **+ new** picker no longer lists every repo twice on Macs where both

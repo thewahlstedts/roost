@@ -122,6 +122,7 @@ func save() (bool, error) {
 	if v, _ := tmux("show-options", "-gqv", "@roost_restoring"); v == "1" {
 		return false, nil
 	}
+	refreshRoots()
 	st, err := snapshot()
 	if err != nil || len(st.Windows) == 0 {
 		return false, err

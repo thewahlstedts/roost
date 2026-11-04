@@ -38,6 +38,9 @@ func runHook() {
 	// Name the tab after the folder Claude is working in.
 	if ev.Cwd != "" && ev.Event != "SessionEnd" {
 		tmux("set-option", "-p", "-t", pane, "@roost_dir", filepath.Base(ev.Cwd))
+		tmux("set-option", "-p", "-t", pane, "@roost_cwd", ev.Cwd)
+		cur, _ := tmux("display-message", "-p", "-t", pane, "#{@roost_root}")
+		setPaneRoot(pane, ev.Cwd, cur)
 	}
 
 	switch ev.Event {
@@ -79,6 +82,7 @@ func runHook() {
 			tmux("set-option", "-pu", "-t", pane, "@roost_agent")
 			tmux("set-option", "-wu", "-t", pane, "@roost_state")
 			tmux("set-option", "-pu", "-t", pane, "@roost_dir")
+			tmux("set-option", "-pu", "-t", pane, "@roost_cwd")
 			save()
 		}
 	}
