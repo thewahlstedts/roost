@@ -8,7 +8,7 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
-## Unreleased
+## v0.7.0 — 2026-11-04
 
 - Tabs are named after the git repo they're in, not the folder. Go into a
   subfolder and the tab still says `cluster-tooling`, with the subfolder after
