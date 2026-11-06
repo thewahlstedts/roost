@@ -8,7 +8,7 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
-## Unreleased
+## v0.8.0 — 2026-11-06
 
 - Tab notes: a line above the tabs says what the current tab is for, so
   several tabs in the same repo are easy to tell apart. Set it with
