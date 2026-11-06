@@ -141,7 +141,7 @@ repos it found and how long it took; `roost folders --list` lists them.
 **Move tabs** by dragging one and dropping it where you want it (on another
 tab, past the last tab, or on the 🐓 label for first), with **Cmd+Shift+← / →** (iTerm
 profile), or by right-clicking a tab for a menu (move left/right, to start/end,
-rename, close). The order is kept across restarts.
+rename, note, close). The order is kept across restarts.
 
 Tabs are named after the git repo they're in (or the folder, outside a repo;
 for Claude tabs, the folder Claude is working in) and update as you move
@@ -149,9 +149,54 @@ around. In a subfolder of the repo, the tab shows it after the name, dimmed:
 `cluster-tooling › bootstrap`. Rename a tab and your name sticks, including
 across restarts; it still shows the subfolder.
 
+When two or more tabs are in the same repo, their names start with the branch
+each one is on, so you can tell them apart: `tab-notes · roost`,
+`master · roost`. A tab alone in its repo shows just the repo.
+
 ```
 set -g @roost_subdir off            # don't show the subfolder
 set -g @roost_subdir_color colour244
+set -g @roost_branch_prefix off     # don't start names with the branch
+```
+
+### Tab notes
+
+Several tabs in the same place doing different things look alike, so each tab
+can have a note: a short line about what it's for, shown above the tabs.
+
+```
+ ✎ fix token refresh race
+ 🐓 roost v0.7.0  1 api │ ● 2 web │ $ 3 notes                + new  ? help
+```
+
+Set it with **Ctrl-Space N**, by clicking the note line, from the right-click
+menu, or from a terminal in the tab:
+
+```sh
+roost note "fix token refresh race"   # set this tab's note
+roost note                            # show it
+roost note --clear                    # remove it
+```
+
+A new tab without a note shows a hint about how to add one for its first 30
+seconds. Notes are saved and come back after a restart. A Claude tab without a note
+shows Claude Code's own title for the conversation instead (dimmer): the one
+you gave it with `/rename`, or the one Claude Code made up. Other CLIs don't
+have titles, so their tabs show only notes you set.
+
+To have Claude keep the note up to date itself, turn on `@roost_note_ai`:
+roost then tells Claude, at the start of each session, to run `roost note "…"`
+when the task becomes clear or changes. Each of those is a Bash command, so
+allow it in `~/.claude/settings.json` to skip the permission prompt:
+`"permissions": {"allow": ["Bash(roost note:*)"]}`.
+
+```
+set -g @roost_note_ai on            # Claude keeps the note current
+set -g @roost_note_line off         # hide the note line
+set -g @roost_note_hint off         # no "add a note" hint (default: 30s on new tabs; on = always)
+set -g @roost_note_icon "✎"
+set -g @roost_note_color colour252  # your note
+set -g @roost_title_color colour246 # Claude's title
 ```
 
 Other keys are `Ctrl-Space`, let go, then:
@@ -163,7 +208,7 @@ Other keys are `Ctrl-Space`, let go, then:
 | `r` | rename | `x` | close tab |
 | `\|` `-` | split | `d` | detach |
 | `?` | help | `s` | save now |
-| `<` `>` | move tab left / right | | |
+| `<` `>` | move tab left / right | `N` | tab note |
 
 ## Other CLIs
 

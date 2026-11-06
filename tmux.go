@@ -105,6 +105,7 @@ func writeConf() error {
 	conf = strings.ReplaceAll(conf, "@SETTINGS@", settingsConfPath())
 	conf = strings.ReplaceAll(conf, "@CUSTOM@", filepath.Join(homeDir(), "custom.conf"))
 	conf = strings.ReplaceAll(conf, "@COPY@", copyAction())
+	conf = strings.ReplaceAll(conf, "@NOTELINE@", noteLineConf(defaultTabLine()))
 	return os.WriteFile(confPath(), []byte(conf), 0o600)
 }
 
@@ -223,7 +224,10 @@ setw -g automatic-rename on
 set -g @roost_path "#{?#{@roost_cwd},#{@roost_cwd},#{pane_current_path}}"
 set -g @roost_folder "#{?#{@roost_cwd},#{b:@roost_cwd},#{b:pane_current_path}}"
 set -g @roost_in_repo "#{&&:#{@roost_root},#{||:#{==:#{@roost_root},#{E:@roost_path}},#{m:#{@roost_root}/*,#{E:@roost_path}}}}"
-setw -g automatic-rename-format "#{?#{E:@roost_in_repo},#{b:@roost_root},#{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}}"
+# When two or more tabs are in the same repo, each name starts with its
+# branch ("tab-notes · roost"); roost fills in @roost_branch and @roost_dup.
+set -g @roost_branch_prefix on
+setw -g automatic-rename-format "#{?#{&&:#{!=:#{@roost_branch_prefix},off},#{&&:#{@roost_dup},#{&&:#{@roost_branch},#{E:@roost_in_repo}}}},#{@roost_branch} · ,}#{?#{E:@roost_in_repo},#{b:@roost_root},#{?#{@roost_dir},#{@roost_dir},#{b:pane_current_path}}}"
 set -g allow-rename off
 set -g set-titles on
 set -g set-titles-string "#W · roost"
@@ -241,6 +245,7 @@ bind C-Space send-prefix
 bind n   display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick"
 bind t   new-window -c "#{pane_current_path}"
 bind r   command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\""
+bind N   command-prompt -I "#{@roost_note}" -p "Tab note:" "set -w @roost_note \"%%%\""
 bind x   confirm-before -p "Close tab '#W'? (y/n)" kill-window
 bind d   detach-client
 bind s   run -b "@BIN@ save" \; display-message "roost: saved"
@@ -295,7 +300,7 @@ bind -n M-8 select-window -t :=8
 bind -n M-9 select-window -t :=9
 
 # ---- mouse ----
-bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 72 -h 29 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { select-window -t = } }
+bind -n MouseDown1Status if -F "#{==:#{mouse_status_range},new}" { display-popup -E -w 80% -h 70% -T " New tab " -d "#{pane_current_path}" "@BIN@ pick" } { if -F "#{==:#{mouse_status_range},help}" { display-popup -E -w 72 -h 29 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } { if -F "#{==:#{mouse_status_range},note}" { command-prompt -I "#{@roost_note}" -p "Tab note:" "set -w @roost_note \"%%%\"" } { select-window -t = } } }
 # Drag a tab along the bar and drop it to move it there. tmux reports the
 # drag-start tab for every drag update, so act on the drop: pressing already
 # selected (made active) the dragged tab, and "=" is the tab under the
@@ -314,6 +319,7 @@ bind -n MouseDown3Status select-window -t = \; display-menu -x W -y W -T "#[alig
   "" \
   "Check output" c { run-shell -b "@BIN@ check --popup --pane #{pane_id} --client #{client_name}" } \
   "Rename"  r { command-prompt -I "#W" -p "Rename tab:" "rename-window -- \"%%%\"" } \
+  "Note"    N { command-prompt -I "#{@roost_note}" -p "Tab note:" "set -w @roost_note \"%%%\"" } \
   "Close"   x { confirm-before -p "Close tab '#W'? (y/n)" kill-window }
 bind -n DoubleClick1Status command-prompt -I "#W" -p "Rename tab:" "rename-window -t = -- \"%%%\""
 bind -T copy-mode MouseDragEnd1Pane send -X @COPY@
@@ -371,6 +377,18 @@ set -g @roost_check_marker "#{?#{==:#{@roost_check},pass},#[fg=#{@roost_done_col
 set -g @roost_subdir on
 set -g @roost_subdir_color colour244
 set -g @roost_subdir_marker "#{?#{&&:#{!=:#{@roost_subdir},off},#{&&:#{E:@roost_in_repo},#{!=:#{E:@roost_path},#{@roost_root}}}},#[nobold]#[fg=#{@roost_subdir_color}] › #{E:@roost_folder},}"
+# Note line: a line above the tabs with the current tab's note (Ctrl-Space N,
+# or roost note "…"), else Claude's title for the conversation. @roost_note_line on|off
+set -g @roost_note_line on
+set -g @roost_note_icon "✎"
+set -g @roost_note_icon_color colour242
+set -g @roost_note_color colour252
+set -g @roost_title_color colour246
+set -g @roost_note_hint_color colour240
+# The "add a note" hint: seconds a new tab shows it, on (always) or off (never).
+set -g @roost_note_hint 30
+# Tell Claude (at session start) to keep the note current itself. @roost_note_ai on|off
+set -g @roost_note_ai off
 set -g window-status-separator "#[fg=colour239]│"
 set -g window-status-format " #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,#{?#{==:#{@roost_state},done},#[fg=#{@roost_done_color}]● ,}}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_tab_color}]#I #W#{E:@roost_subdir_marker} "
 set -g window-status-current-format "#[bg=#{@roost_current_tab_bg},fg=#{@roost_current_tab_color},bold] #{?#{==:#{@roost_state},waiting},#[fg=#{@roost_waiting_color}]● ,#{?#{==:#{@roost_state},working},#[fg=#{@roost_working_color}]● ,}}#{E:@roost_check_marker}#{E:@roost_tab_marker}#[fg=#{@roost_current_tab_color}]#I #W#{E:@roost_subdir_marker} "
@@ -384,7 +402,9 @@ set-hook -g after-new-window "run -b '@BIN@ save --quiet'"
 
 source-file -q @SETTINGS@
 source-file -q @CUSTOM@
-`
+
+# ---- note line (after your settings, so @roost_note_line off applies) ----
+@NOTELINE@`
 
 // refreshSplitLabels applies @roost_split_labels to tabs that are already
 // split (the hook only runs when a layout changes).

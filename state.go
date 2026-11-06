@@ -24,6 +24,7 @@ type Pane struct {
 type Window struct {
 	Name   string `json:"name"`
 	Custom bool   `json:"custom,omitempty"` // renamed by hand; otherwise follows the folder
+	Note   string `json:"note,omitempty"`   // what the tab is for (roost note / Ctrl-Space N)
 	Layout string `json:"layout,omitempty"`
 	Active bool   `json:"active,omitempty"`
 	Panes  []Pane `json:"panes"`
@@ -50,6 +51,7 @@ func snapshot() (*State, error) {
 		"#{window_index}", "#{window_name}", "#{window_active}", "#{window_layout}",
 		"#{pane_current_path}", "#{pane_active}", "#{@roost_session}", "#{automatic-rename}",
 		"#{@roost_agent}", "#{pane_current_command}", "#{pane_id}", "#{@roost_started}",
+		"#{@roost_note}",
 	}, sep)
 	out, err := tmux("list-panes", "-s", "-t", sessionName, "-F", f)
 	if err != nil {
@@ -60,13 +62,13 @@ func snapshot() (*State, error) {
 	var order []int
 	for _, line := range strings.Split(out, "\n") {
 		p := splitFields(line)
-		if len(p) != 12 {
+		if len(p) != 13 {
 			continue
 		}
 		idx, _ := strconv.Atoi(p[0])
 		w, ok := byIdx[idx]
 		if !ok {
-			w = &Window{Name: p[1], Active: p[2] == "1", Layout: p[3], Custom: p[7] == "0"}
+			w = &Window{Name: p[1], Active: p[2] == "1", Layout: p[3], Custom: p[7] == "0", Note: p[12]}
 			byIdx[idx] = w
 			order = append(order, idx)
 		}
@@ -123,6 +125,7 @@ func save() (bool, error) {
 		return false, nil
 	}
 	refreshRoots()
+	refreshHints()
 	st, err := snapshot()
 	if err != nil || len(st.Windows) == 0 {
 		return false, err
@@ -221,6 +224,11 @@ func restore(st *State) (int, int, error) {
 			return 0, 0, err
 		}
 		winID, _ := tmux("display-message", "-p", "-t", paneID, "#{window_id}")
+		// Restored tabs aren't new: no "add a note" hint.
+		tmux("set-option", "-w", "-t", winID, "@roost_born", "0")
+		if w.Note != "" {
+			tmux("set-option", "-w", "-t", winID, "@roost_note", cleanNote(w.Note))
+		}
 		if w.Active {
 			activeWin = winID
 		}
