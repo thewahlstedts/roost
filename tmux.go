@@ -105,6 +105,7 @@ func writeConf() error {
 	conf = strings.ReplaceAll(conf, "@SETTINGS@", settingsConfPath())
 	conf = strings.ReplaceAll(conf, "@CUSTOM@", filepath.Join(homeDir(), "custom.conf"))
 	conf = strings.ReplaceAll(conf, "@COPY@", copyAction())
+	conf = strings.ReplaceAll(conf, "@CLIPBOARD@", clipboardCmd())
 	conf = strings.ReplaceAll(conf, "@NOTELINE@", noteLineConf(defaultTabLine()))
 	return os.WriteFile(confPath(), []byte(conf), 0o600)
 }
@@ -169,11 +170,9 @@ func versionLabel() string {
 	return "dev"
 }
 
-// copyAction is the copy-mode action for a mouse selection: pipe it to the
-// system clipboard tool if there is one, else let tmux send it to the
-// terminal (OSC 52, enabled by set-clipboard on), which most terminals and
-// SSH sessions accept.
-func copyAction() string {
+// clipboardCmd is the system clipboard tool for this machine ("pbcopy",
+// "wl-copy", "xclip -selection clipboard"…), or "" if there's none.
+func clipboardCmd() string {
 	var candidates [][]string
 	if runtime.GOOS == "darwin" {
 		candidates = [][]string{{"pbcopy"}}
@@ -189,8 +188,19 @@ func copyAction() string {
 	}
 	for _, c := range candidates {
 		if _, err := exec.LookPath(c[0]); err == nil {
-			return `copy-pipe-and-cancel "` + strings.Join(c, " ") + `"`
+			return strings.Join(c, " ")
 		}
+	}
+	return ""
+}
+
+// copyAction is the copy-mode action for a mouse selection: pipe it to the
+// system clipboard tool if there is one, else let tmux send it to the
+// terminal (OSC 52, enabled by set-clipboard on), which most terminals and
+// SSH sessions accept.
+func copyAction() string {
+	if c := clipboardCmd(); c != "" {
+		return `copy-pipe-and-cancel "` + c + `"`
 	}
 	return "copy-selection-and-cancel"
 }
@@ -322,6 +332,11 @@ bind -n MouseDown3Status select-window -t = \; display-menu -x W -y W -T "#[alig
   "Note"    N { command-prompt -I "#{@roost_note}" -p "Tab note:" "set -w @roost_note \"%%%\"" } \
   "Close"   x { confirm-before -p "Close tab '#W'? (y/n)" kill-window }
 bind -n DoubleClick1Status command-prompt -I "#W" -p "Rename tab:" "rename-window -t = -- \"%%%\""
+# tmux's own double-/triple-click bindings (select a word / line) copy with
+# a bare copy-pipe, which uses copy-command: point it at the clipboard too,
+# or they'd only reach the clipboard if the terminal allows OSC 52 (iTerm
+# doesn't by default).
+set -s copy-command "@CLIPBOARD@"
 bind -T copy-mode MouseDragEnd1Pane send -X @COPY@
 bind -T copy-mode-vi MouseDragEnd1Pane send -X @COPY@
 

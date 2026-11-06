@@ -8,6 +8,12 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
+## Unreleased
+
+- Double-clicking a word (or triple-clicking a line) copies it to the
+  clipboard, like dragging does. Before, it only highlighted it unless your
+  terminal let programs set the clipboard (iTerm doesn't by default).
+
 ## v0.8.0 — 2026-11-06
 
 - Tab notes: a line above the tabs says what the current tab is for, so
