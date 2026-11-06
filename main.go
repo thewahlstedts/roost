@@ -39,6 +39,7 @@ const usage = `roost — keep your AI coding CLI tabs alive, even across restart
       --source-depth N    levels below them to look for repos (default 4)
       --remove            uninstall it
       --shortcut X        Ctrl+Cmd+X opens roost in iTerm (default R; 'none')
+  roost note [TEXT]     show or set this tab's note (--clear removes it)
   roost keys            show keyboard shortcuts
   roost check           run this project's check (tests/lint) now
       --allow | --deny    approve or revoke it running automatically
@@ -126,6 +127,8 @@ func main() {
 		if hasFlag(args, "--wait") {
 			err = helpMenu()
 		}
+	case "note":
+		err = cmdNote(args)
 	case "check":
 		err = cmdCheck(args)
 	case "folders":
@@ -445,7 +448,7 @@ const keysHelp = `
   Move tabs
     Cmd-Shift-← / → ........... move this tab left / right
     drag a tab, drop it ....... move it there (past the end = last)
-    right-click a tab ......... move / rename / close menu
+    right-click a tab ......... move / rename / note / close menu
 
   New tab
     click "+ new" ............. new tab (pick a folder; Tab = CLI)
@@ -458,7 +461,7 @@ const keysHelp = `
     |    split right    -  split down      z  zoom split
     d    detach         s  save now        ?  this help
     c    check output (✓ passed  ✗ failed  ◌ running  ? approve)
-    <    move left      >  move right
+    <    move left      >  move right       N  tab note
 
   Mouse: double-click a tab to rename · scroll · drag to copy
   Tabs marked $ aren't running an AI CLI (README: Tab markers)

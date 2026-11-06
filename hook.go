@@ -29,6 +29,8 @@ func runHook() {
 		Reason  string `json:"reason"`
 		Message string `json:"message"`
 		Cwd     string `json:"cwd"`
+		// The conversation's transcript (where Claude Code keeps its title).
+		Transcript string `json:"transcript_path"`
 	}
 	if json.Unmarshal(data, &ev) != nil {
 		return
@@ -50,7 +52,13 @@ func runHook() {
 		}
 		tmux("set-option", "-p", "-t", pane, "@roost_agent", "claude")
 		setState("idle")
+		// A resumed conversation has a title already; a new one (or /clear)
+		// has none yet, so this also clears the previous one's.
+		updateTitle(pane, ev.Transcript, ev.Session)
 		save()
+		if v, _ := tmux("show-options", "-gqv", "@roost_note_ai"); strings.TrimSpace(v) == "on" {
+			printNoteAIContext()
+		}
 	case "UserPromptSubmit":
 		setState("working")
 		// Claude is changing things again: an earlier check result is stale.
@@ -73,6 +81,9 @@ func runHook() {
 		} else {
 			setState("done")
 		}
+		// Claude Code titles the conversation after the first turn and may
+		// retitle it later (or you /rename it).
+		updateTitle(pane, ev.Transcript, ev.Session)
 		startBackgroundCheck(pane, ev.Cwd)
 	case "SessionEnd":
 		// Only forget the session when you deliberately quit Claude. A
@@ -81,6 +92,7 @@ func runHook() {
 			tmux("set-option", "-pu", "-t", pane, "@roost_session")
 			tmux("set-option", "-pu", "-t", pane, "@roost_agent")
 			tmux("set-option", "-wu", "-t", pane, "@roost_state")
+			tmux("set-option", "-wu", "-t", pane, "@roost_title")
 			tmux("set-option", "-pu", "-t", pane, "@roost_dir")
 			tmux("set-option", "-pu", "-t", pane, "@roost_cwd")
 			save()

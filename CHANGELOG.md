@@ -8,6 +8,21 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
+## Unreleased
+
+- Tab notes: a line above the tabs says what the current tab is for, so
+  several tabs in the same repo are easy to tell apart. Set it with
+  Ctrl-Space N, by clicking the line, from the right-click menu, or with
+  `roost note "…"`. Notes come back after a restart. Claude tabs without a
+  note show Claude Code's title for the conversation. Turn on
+  `set -g @roost_note_ai on` and Claude keeps the note current itself; hide
+  the line with `set -g @roost_note_line off`. New tabs show a hint about
+  adding a note for 30 seconds (`set -g @roost_note_hint off`, `on` for
+  always, or a number of seconds).
+- When two or more tabs are in the same repo, their names start with their
+  branch: `tab-notes · roost`. Turn it off with
+  `set -g @roost_branch_prefix off`.
+
 ## v0.7.0 — 2026-11-04
 
 - Tabs are named after the git repo they're in, not the folder. Go into a
