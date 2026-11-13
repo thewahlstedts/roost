@@ -463,7 +463,8 @@ const keysHelp = `
     c    check output (✓ passed  ✗ failed  ◌ running  ? approve)
     <    move left      >  move right       N  tab note
 
-  Mouse: double-click a tab to rename · scroll · drag to copy
+  Mouse: click 🐓 roost for a menu (detach, split, save…)
+         double-click a tab to rename · scroll · drag to copy
   Tabs marked $ aren't running an AI CLI (README: Tab markers)
 `
 

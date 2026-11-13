@@ -114,7 +114,9 @@ roost kill                  # save + close everything
 
 Inside roost, use the mouse: click tabs, click **+ new** to pick a folder for a
 new tab, double-click a tab to rename it. Click **? help** for a cheat sheet.
-While it's open, `n` and `t` open tabs directly.
+While it's open, `n` and `t` open tabs directly. Click the **🐓 roost** label
+for a menu of what Ctrl-Space does: new tab, rename, note, check output,
+close, split, zoom, save, the shortcuts, and detach.
 
 The **+ new** picker lists the current folder, then folders you've used
 recently (with any CLI, newest first), then every git repo under your source
