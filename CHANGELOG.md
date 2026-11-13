@@ -8,7 +8,7 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
-## Unreleased
+## v0.9.0 — 2026-11-13
 
 - Click the 🐓 roost label (bottom left) for a menu of what Ctrl-Space does:
   new tab, rename, note, check output, close, split, zoom, save, keyboard
