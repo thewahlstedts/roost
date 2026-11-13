@@ -222,7 +222,7 @@ const roostMenu = `display-menu -x M -y S -T "#[align=centre] 🐓 roost " \
   "Split down"      - { split-window -v -c "#{pane_current_path}" } \
   "#{?#{>:#{window_panes},1},,-}#{?window_zoomed_flag,Unzoom split,Zoom split}" z { resize-pane -Z } \
   "" \
-  "Save now"        s { run -b "@BIN@ save" \; display-message "roost: saved" } \
+  "Save now"        s { run -b "@BIN@ save" ; display-message "roost: saved" } \
   "Keyboard shortcuts" ? { display-popup -E -w 72 -h 30 -T " 🐓 roost " -d "#{pane_current_path}" "@BIN@ keys --wait" } \
   "" \
   "Detach"          d { detach-client }`
