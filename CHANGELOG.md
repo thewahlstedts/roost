@@ -8,6 +8,12 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
+## Unreleased
+
+- Click the 🐓 roost label (bottom left) for a menu of what Ctrl-Space does:
+  new tab, rename, note, check output, close, split, zoom, save, keyboard
+  shortcuts and detach. Each item shows its Ctrl-Space key.
+
 ## v0.8.1 — 2026-11-06
 
 - Double-clicking a word (or triple-clicking a line) copies it to the
