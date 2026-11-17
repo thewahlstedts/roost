@@ -147,6 +147,43 @@ func pickerChoices() []string {
 	return append(out, shellChoice)
 }
 
+// openChoice is one entry on the picker's "open with" line.
+type openChoice struct {
+	Label string // what the bar shows
+	Agent string // what enter runs (shellChoice for a plain tab)
+}
+
+// openChoices orders the "open with" line for one folder. used is what that
+// folder was opened with, most recent first. The most recent comes first as
+// "last used (x)", then the rest of its history, then every other choice in
+// base's order. Names not in base (say, dropped from @roost_agents) are
+// skipped; with no usable history it's just base.
+func openChoices(base, used []string) []openChoice {
+	inBase := map[string]bool{}
+	for _, n := range base {
+		inBase[n] = true
+	}
+	var out []openChoice
+	seen := map[string]bool{}
+	for _, n := range used {
+		if !inBase[n] || seen[n] {
+			continue
+		}
+		seen[n] = true
+		label := n
+		if len(out) == 0 {
+			label = "last used (" + n + ")"
+		}
+		out = append(out, openChoice{label, n})
+	}
+	for _, n := range base {
+		if !seen[n] {
+			out = append(out, openChoice{n, n})
+		}
+	}
+	return out
+}
+
 // pickerAgents lists the CLIs Tab cycles through in the folder picker:
 // @roost_agents if set, otherwise the default plus any installed presets.
 func pickerAgents() []string {
