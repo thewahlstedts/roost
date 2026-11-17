@@ -111,12 +111,14 @@ func pick() error {
 	roots, depth := sourceRoots(), sourceDepth()
 	var all []string
 	tagsOf := map[string]string{}
+	usedIn := map[string][]string{} // CLIs used in each folder, most recent first
 	build := func(repos []string) {
 		folders := pickerFolders(cwd, repos)
 		all = make([]string, len(folders))
 		for i, f := range folders {
 			all[i] = f.Dir
 			tagsOf[f.Dir] = strings.Join(f.Tags, " · ")
+			usedIn[f.Dir] = f.Tags
 		}
 	}
 	// Open instantly from the last scan; a background scan (never cut short)
@@ -165,8 +167,12 @@ func pick() error {
 	defer fmt.Fprint(w, "\x1b[?25h\x1b[2J\x1b[H")
 
 	accent := accentSGR()
-	agents := pickerChoices()
-	ai := 0
+	base := pickerChoices()
+	// The "open with" line follows the selected folder. Until you press Tab
+	// it sits on that folder's first entry (its last-used CLI); after, it
+	// keeps the CLI you tabbed to as you move between folders.
+	var agents []openChoice
+	ai, picked := 0, ""
 	query, sel, top := "", 0, 0
 	for {
 		// Build the visible list.
@@ -195,6 +201,17 @@ func pick() error {
 		}
 		if sel >= top+rows {
 			top = sel - rows + 1
+		}
+		var here []string
+		if sel < len(list) {
+			here = usedIn[list[sel]]
+		}
+		agents, ai = openChoices(base, here), 0
+		for i, c := range agents {
+			if picked != "" && c.Agent == picked {
+				ai = i
+				break
+			}
 		}
 
 		var b strings.Builder
@@ -254,7 +271,7 @@ func pick() error {
 				continue
 			}
 			term.Restore(fd, old)
-			agent := agents[ai]
+			agent := agents[ai].Agent
 			if agent == shellChoice {
 				agent = "" // just a tab in that folder
 			}
@@ -266,9 +283,9 @@ func pick() error {
 			}
 			sel = 0
 		case n == 1 && k[0] == 9: // tab: next CLI
-			ai = (ai + 1) % len(agents)
+			picked = tabTo(agents, (ai+1)%len(agents))
 		case n >= 3 && k[0] == 27 && k[1] == '[' && k[2] == 'Z': // shift-tab
-			ai = (ai + len(agents) - 1) % len(agents)
+			picked = tabTo(agents, (ai+len(agents)-1)%len(agents))
 		case n == 1 && k[0] == 21: // ctrl-u
 			query, sel = "", 0
 		case n == 1 && (k[0] == 16 || k[0] == 11): // ctrl-p / ctrl-k
@@ -337,19 +354,30 @@ func row(dir, extra string, selected bool, width int) string {
 	return fmt.Sprintf("    \x1b[38;5;252m%s \x1b[38;5;242m%s\x1b[0m\r\n", name, parent)
 }
 
+// tabTo is the CLI to remember after Tab lands on agents[i]. Landing back on
+// the first slot returns "" so the line follows each folder's last-used CLI
+// again.
+func tabTo(agents []openChoice, i int) string {
+	if i == 0 {
+		return ""
+	}
+	return agents[i].Agent
+}
+
 // cliBar is the picker's "open with" line: every CLI tab cycles through, the
 // one enter will run highlighted in the accent colour. When they don't all
 // fit it shows just the chosen one and its place in the cycle.
-func cliBar(agents []string, cur int, accent string, width int) string {
+func cliBar(agents []openChoice, cur int, accent string, width int) string {
 	const label, hint = " open with ", "   tab ⇄"
 	bg := "7" // reverse video if the accent isn't a foreground colour code
 	if strings.HasPrefix(accent, "38;") {
 		bg = "48;" + strings.TrimPrefix(accent, "38;") + ";38;5;231"
 	}
-	chosen := fmt.Sprintf("\x1b[1;%sm %s \x1b[0m", bg, agents[cur])
+	chosen := fmt.Sprintf("\x1b[1;%sm %s \x1b[0m", bg, agents[cur].Label)
 	n := len([]rune(label)) + len([]rune(hint))
 	var parts []string
-	for i, a := range agents {
+	for i, c := range agents {
+		a := c.Label
 		n += len([]rune(a)) + 3
 		if i == cur {
 			parts = append(parts, chosen)

@@ -61,7 +61,7 @@ func TestTmuxVersionOK(t *testing.T) {
 
 func TestCLIBar(t *testing.T) {
 	plain := func(s string) string { return regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(s, "") }
-	agents := []string{"claude", "pi", "shell"}
+	agents := openChoices([]string{"claude", "pi", "shell"}, nil)
 	wide := cliBar(agents, 1, "38;2;224;71;58", 80)
 	if got := plain(wide); got != " open with  claude   pi   shell    tab ⇄" {
 		t.Errorf("wide bar: %q", got)
@@ -74,5 +74,33 @@ func TestCLIBar(t *testing.T) {
 	}
 	if !strings.Contains(cliBar(agents, 0, "1", 80), "\x1b[1;7m claude ") {
 		t.Error("non-colour accent should fall back to reverse video")
+	}
+}
+
+func TestOpenChoices(t *testing.T) {
+	labels := func(cs []openChoice) (l, a []string) {
+		for _, c := range cs {
+			l, a = append(l, c.Label), append(a, c.Agent)
+		}
+		return
+	}
+	base := []string{"claude", "codex", "pi", "shell"}
+	cases := []struct {
+		used, labels, agents []string
+	}{
+		{nil, base, base},
+		{[]string{"pi"}, []string{"last used (pi)", "claude", "codex", "shell"}, []string{"pi", "claude", "codex", "shell"}},
+		{[]string{"shell", "codex", "claude"}, []string{"last used (shell)", "codex", "claude", "pi"}, []string{"shell", "codex", "claude", "pi"}},
+		{[]string{"gone", "codex"}, []string{"last used (codex)", "claude", "pi", "shell"}, []string{"codex", "claude", "pi", "shell"}},
+	}
+	for _, c := range cases {
+		l, a := labels(openChoices(base, c.used))
+		if strings.Join(l, ",") != strings.Join(c.labels, ",") || strings.Join(a, ",") != strings.Join(c.agents, ",") {
+			t.Errorf("openChoices(%v) = %v / %v, want %v / %v", c.used, l, a, c.labels, c.agents)
+		}
+	}
+	cs := openChoices(base, []string{"pi"})
+	if tabTo(cs, 0) != "" || tabTo(cs, 2) != "codex" {
+		t.Error("tabTo should forget the pick on the first slot and remember it elsewhere")
 	}
 }

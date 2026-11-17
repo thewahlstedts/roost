@@ -8,6 +8,15 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
+## Unreleased
+
+- The **+ new** picker's "open with" line now follows the folder you have
+  selected. It starts on **last used (claude)** (or whichever CLI you last
+  opened there), followed by the others you've used in that folder, most
+  recent first, then the rest in the usual order. Press Tab to pick another
+  one. It stays picked as you move between folders until you Tab back around
+  to "last used".
+
 ## v0.9.0 — 2026-11-13
 
 - Click the 🐓 roost label (bottom left) for a menu of what Ctrl-Space does:
