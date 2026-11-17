@@ -8,7 +8,7 @@ Add notes under "Unreleased" as changes land. To release, rename that heading
 to the new version (e.g. `## v0.5.0 — 2026-11-04`) and tag it; the release
 workflow refuses to publish a version that has no section here.
 
-## Unreleased
+## v0.10.0 — 2026-11-17
 
 - The **+ new** picker's "open with" line now follows the folder you have
   selected. It starts on **last used (claude)** (or whichever CLI you last
